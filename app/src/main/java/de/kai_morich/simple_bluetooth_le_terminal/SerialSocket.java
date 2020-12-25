@@ -50,6 +50,10 @@ class SerialSocket extends BluetoothGattCallback {
     private static final UUID BLUETOOTH_LE_RN4870_SERVICE = UUID.fromString("49535343-FE7D-4AE5-8FA9-9FAFD205E455");
     private static final UUID BLUETOOTH_LE_RN4870_CHAR_RW = UUID.fromString("49535343-1E4D-4BD9-BA61-23C647249616");
 
+    //mason-inject
+    private static final UUID BLUETOOTH_LE_LinkIt7697_SERVICE = UUID.fromString("19B10010-E8F2-537E-4F6C-D104768A1214");
+    private static final UUID BLUETOOTH_LE_LinkIt7697_RW = UUID.fromString("19B10011-E8F2-537E-4F6C-D104768A1214");
+
     // https://play.google.com/store/apps/details?id=com.telit.tiosample
     // https://www.telit.com/wp-content/uploads/2017/09/TIO_Implementation_Guide_r6.pdf
     private static final UUID BLUETOOTH_LE_TIO_SERVICE          = UUID.fromString("0000FEFB-0000-1000-8000-00805F9B34FB");
@@ -226,6 +230,8 @@ class SerialSocket extends BluetoothGattCallback {
                 delegate = new NrfDelegate();
             if (gattService.getUuid().equals(BLUETOOTH_LE_TIO_SERVICE))
                 delegate = new TelitDelegate();
+            if (gattService.getUuid().equals(BLUETOOTH_LE_LinkIt7697_SERVICE))
+                delegate = new LinkIt7697Delegate();
 
             if(delegate != null) {
                 sync = delegate.connectCharacteristics(gattService);
@@ -445,6 +451,15 @@ class SerialSocket extends BluetoothGattCallback {
     /**
      * device delegates
      */
+    private class LinkIt7697Delegate extends DeviceDelegate {
+        @Override
+        boolean connectCharacteristics(BluetoothGattService gattService) {
+            Log.d(TAG, "service LinkIt7697 uart");
+            readCharacteristic = gattService.getCharacteristic(BLUETOOTH_LE_LinkIt7697_RW);
+            writeCharacteristic = gattService.getCharacteristic(BLUETOOTH_LE_LinkIt7697_RW);
+            return true;
+        }
+    }
 
     private class Cc245XDelegate extends DeviceDelegate {
         @Override
