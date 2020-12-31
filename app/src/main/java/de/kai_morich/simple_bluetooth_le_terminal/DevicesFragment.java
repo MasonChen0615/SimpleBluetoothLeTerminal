@@ -19,6 +19,8 @@ import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.ListFragment;
+
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -279,6 +281,7 @@ public class DevicesFragment extends ListFragment {
         BluetoothDevice device = listItems.get(position-1);
         Bundle args = new Bundle();
         args.putString("device", device.getAddress());
+        Log.i(Constants.DEBUG_TAG,"got device:" + device.getAddress());
         Fragment fragment = new TerminalFragment();
         fragment.setArguments(args);
         getFragmentManager().beginTransaction().replace(R.id.fragment, fragment, "terminal").addToBackStack(null).commit();

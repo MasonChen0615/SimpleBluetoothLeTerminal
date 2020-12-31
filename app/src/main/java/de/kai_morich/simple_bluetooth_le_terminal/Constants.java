@@ -9,6 +9,6 @@ class Constants {
 
     // values have to be unique within each app
     static final int NOTIFY_MANAGER_START_FOREGROUND_SERVICE = 1001;
-
+    static final String DEBUG_TAG = "AAA";
     private Constants() {}
 }

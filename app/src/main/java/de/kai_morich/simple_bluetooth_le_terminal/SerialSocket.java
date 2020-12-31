@@ -54,6 +54,10 @@ class SerialSocket extends BluetoothGattCallback {
     private static final UUID BLUETOOTH_LE_LinkIt7697_SERVICE = UUID.fromString("19B10010-E8F2-537E-4F6C-D104768A1214");
     private static final UUID BLUETOOTH_LE_LinkIt7697_RW = UUID.fromString("19B10011-E8F2-537E-4F6C-D104768A1214");
 
+    //sunion
+    private static final UUID BLUETOOTH_LE_Sunion_SERVICE = UUID.fromString("fc3d8cf8-4ddc-7ade-1dd9-2497851131d7");
+    private static final UUID BLUETOOTH_LE_Sunion_RW = UUID.fromString("de915dce-3539-61ea-ade7-d44a2237601f");
+
     // https://play.google.com/store/apps/details?id=com.telit.tiosample
     // https://www.telit.com/wp-content/uploads/2017/09/TIO_Implementation_Guide_r6.pdf
     private static final UUID BLUETOOTH_LE_TIO_SERVICE          = UUID.fromString("0000FEFB-0000-1000-8000-00805F9B34FB");
@@ -232,6 +236,8 @@ class SerialSocket extends BluetoothGattCallback {
                 delegate = new TelitDelegate();
             if (gattService.getUuid().equals(BLUETOOTH_LE_LinkIt7697_SERVICE))
                 delegate = new LinkIt7697Delegate();
+            if (gattService.getUuid().equals(BLUETOOTH_LE_Sunion_SERVICE))
+                delegate = new SunionDelegate();
 
             if(delegate != null) {
                 sync = delegate.connectCharacteristics(gattService);
@@ -451,6 +457,55 @@ class SerialSocket extends BluetoothGattCallback {
     /**
      * device delegates
      */
+    private class SunionDelegate extends DeviceDelegate {
+        @Override
+        boolean connectCharacteristics(BluetoothGattService gattService) {
+            Log.d(TAG, "service Sunion uart");
+            if (gattService.getCharacteristic(BLUETOOTH_LE_Sunion_RW) != null){
+                readCharacteristic = gattService.getCharacteristic(BLUETOOTH_LE_Sunion_RW);
+                writeCharacteristic = gattService.getCharacteristic(BLUETOOTH_LE_Sunion_RW);
+            }else{
+                /**
+                 * TODO : Need init in connectCharacteristics Sunion, in first time getCharacteristic is null.
+                 * make a app side Characteristics to notify message.
+                 */
+                BluetoothGattCharacteristic characteristic_with_c0 = new BluetoothGattCharacteristic(
+                        BLUETOOTH_LE_Sunion_RW,
+                        BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+                        BluetoothGattDescriptor.PERMISSION_READ | BluetoothGattDescriptor.PERMISSION_WRITE
+                );
+                BluetoothGattDescriptor gatt_descriptor_with_c0 = new BluetoothGattDescriptor(BLUETOOTH_LE_Sunion_RW, BluetoothGattDescriptor.PERMISSION_WRITE | BluetoothGattDescriptor.PERMISSION_READ);
+                gatt_descriptor_with_c0.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                characteristic_with_c0.addDescriptor(gatt_descriptor_with_c0);
+                readCharacteristic = characteristic_with_c0;
+                writeCharacteristic = characteristic_with_c0;
+//                mBluetoothGatt.setCharacteristicNotification(characteristic_with_c0, true);
+//                try {
+//                    KeyGenerator keygen = KeyGenerator.getInstance("AES");
+//                    keygen.init(128);
+//                    SecretKey key = keygen.generateKey();
+//                    byte[] mykey = key.getEncoded();
+//                    byte[] message  = CodeUtils.getCommandPackage(CodeUtils.BLE_Connect, (byte)0x10, mykey);
+//                    tvlog.setText("APP傳送:C010"+CodeUtils.bytesToHex(message));
+//                    Log.i(TAG,"write message");
+//                    characteristic_with_c0.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+//                    characteristic_with_c0.setValue(message);
+//                    mBluetoothGatt.writeCharacteristic(characteristic_with_c0);
+//                    mBluetoothGatt.writeDescriptor(gatt_descriptor_with_c0);
+//                    try{
+//                        // delay 1 second
+//                        Thread.sleep(1000);
+//                    } catch(InterruptedException e){
+//                        e.printStackTrace();
+//                    }
+//                    mBluetoothGatt.discoverServices();
+//                } catch (NoSuchAlgorithmException e) {
+//                    e.printStackTrace();
+//                }
+            }
+            return true;
+        }
+    }
     private class LinkIt7697Delegate extends DeviceDelegate {
         @Override
         boolean connectCharacteristics(BluetoothGattService gattService) {

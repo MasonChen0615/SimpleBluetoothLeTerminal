@@ -15,18 +15,25 @@ import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+
+import java.security.NoSuchAlgorithmException;
+
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
 
@@ -41,9 +48,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
-    private boolean hexEnabled = false;
+    private boolean hexEnabled = true;
     private boolean pendingNewline = false;
-    private String newline = TextUtil.newline_crlf;
+//    private String newline = TextUtil.newline_crlf;
+    private String newline = "";
 
     /*
      * Lifecycle
@@ -135,6 +143,24 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
         View sendBtn = view.findViewById(R.id.send_btn);
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
+        Button command_button= (Button)view.findViewById(R.id.Command);
+        command_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Log.i(Constants.DEBUG_TAG,"command button enable!");
+                try {
+                    KeyGenerator keygen = KeyGenerator.getInstance("AES");
+                    keygen.init(128);
+                    SecretKey key = keygen.generateKey();
+                    byte[] mykey = key.getEncoded();
+                    byte[] message  = CodeUtils.getCommandPackage(CodeUtils.BLE_Connect, (byte)0x10, mykey);
+                    sendText.setText(CodeUtils.bytesToHex(message));
+                    Log.i(Constants.DEBUG_TAG,"prepare message in byte:" + CodeUtils.bytesToHex(message));
+                } catch (NoSuchAlgorithmException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
         return view;
     }
 
@@ -204,11 +230,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             String msg;
             byte[] data;
             if(hexEnabled) {
+                Log.i(Constants.DEBUG_TAG,"prepare message");
                 StringBuilder sb = new StringBuilder();
                 TextUtil.toHexString(sb, TextUtil.fromHexString(str));
                 TextUtil.toHexString(sb, newline.getBytes());
                 msg = sb.toString();
                 data = TextUtil.fromHexString(msg);
+                Log.i(Constants.DEBUG_TAG,"message in byte:" + CodeUtils.bytesToHex(data));
             } else {
                 msg = str;
                 data = (str + newline).getBytes();
