@@ -16,7 +16,9 @@ import android.os.Looper;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -25,6 +27,9 @@ import java.util.Queue;
  * use listener chain: SerialSocket -> SerialService -> UI fragment
  */
 public class SerialService extends Service implements SerialListener {
+
+    private byte current_command = 0x00;
+    private String command_step = CodeUtils.Command_Initialization;
 
     class SerialBinder extends Binder {
         SerialService getService() { return SerialService.this; }
@@ -93,6 +98,29 @@ public class SerialService extends Service implements SerialListener {
         if(!connected)
             throw new IOException("not connected");
         socket.write(data);
+    }
+
+    public void write(byte[] data , byte command) throws IOException {
+        if(!connected)
+            throw new IOException("not connected");
+        socket.write(data);
+        current_command = command;
+    }
+
+    private void setCommandStep(String step) throws IOException {
+        Object someObject = new CodeUtils();
+        Class<?> someClass = someObject.getClass();
+        try {
+            Field someField = someClass.getField(step);
+            command_step = step;
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+            throw new IOException("NoSuchFieldException in this command" + CodeUtils.bytesToHex(new byte[] { current_command }) + "" );
+        }
+    }
+
+    private void ResetCommandStep(){
+        command_step = CodeUtils.Command_Initialization;
     }
 
     public void attach(SerialListener listener) {

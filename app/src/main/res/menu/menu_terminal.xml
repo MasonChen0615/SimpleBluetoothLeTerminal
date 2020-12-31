@@ -15,4 +15,8 @@
         android:title="HEX Mode"
         android:checkable="true"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/token"
+        android:title="Get Token"
+        app:showAsAction="never" />
 </menu>

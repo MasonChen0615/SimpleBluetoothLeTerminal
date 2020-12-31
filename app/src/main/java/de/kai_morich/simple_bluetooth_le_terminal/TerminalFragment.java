@@ -22,7 +22,9 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,6 +32,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.security.NoSuchAlgorithmException;
 
 import javax.crypto.KeyGenerator;
@@ -45,6 +53,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private TextView receiveText;
     private TextView sendText;
     private TextUtil.HexWatcher hexWatcher;
+    private Spinner mSpn;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
@@ -52,6 +61,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private boolean pendingNewline = false;
 //    private String newline = TextUtil.newline_crlf;
     private String newline = "";
+
+    private byte current_command = 0x00;
+    private byte[] communication_AES_KEY;  // C1 and C1 aes key xor
+    private String communication_token = "";
 
     /*
      * Lifecycle
@@ -141,6 +154,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         sendText.addTextChangedListener(hexWatcher);
         sendText.setHint(hexEnabled ? "HEX mode" : "");
 
+        mSpn = (Spinner) view.findViewById(R.id.CommandSpinner);
+        mSpn.setOnItemSelectedListener(spnOnItemSelected);
+
         View sendBtn = view.findViewById(R.id.send_btn);
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
         Button command_button= (Button)view.findViewById(R.id.Command);
@@ -155,6 +171,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     byte[] mykey = key.getEncoded();
                     byte[] message  = CodeUtils.getCommandPackage(CodeUtils.BLE_Connect, (byte)0x10, mykey);
                     sendText.setText(CodeUtils.bytesToHex(message));
+                    current_command = CodeUtils.BLE_Connect;
                     Log.i(Constants.DEBUG_TAG,"prepare message in byte:" + CodeUtils.bytesToHex(message));
                 } catch (NoSuchAlgorithmException e) {
                     e.printStackTrace();
@@ -163,6 +180,22 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         });
         return view;
     }
+
+    private AdapterView.OnItemSelectedListener spnOnItemSelected = new AdapterView.OnItemSelectedListener()
+    {
+        @Override
+        public void onItemSelected(AdapterView<?> parent, View v, int position, long id)
+        {
+            // TODO Auto-generated method stub
+            Log.i(Constants.DEBUG_TAG,"command selected:" + parent.getItemAtPosition(position).toString());
+        }
+
+        @Override
+        public void onNothingSelected(AdapterView<?> arg0)
+        {
+            // TODO Auto-generated method stub
+        }
+    };
 
     @Override
     public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
@@ -194,6 +227,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             hexWatcher.enable(hexEnabled);
             sendText.setHint(hexEnabled ? "HEX mode" : "");
             item.setChecked(hexEnabled);
+            return true;
+        } else if (id == R.id.token) {
+            readToken();
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -244,7 +280,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             SpannableStringBuilder spn = new SpannableStringBuilder(msg+'\n');
             spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             receiveText.append(spn);
-            service.write(data);
+            service.write(data,current_command);
         } catch (Exception e) {
             onSerialIoError(e);
         }
@@ -275,6 +311,37 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         receiveText.append(spn);
     }
+
+    private void saveToken(String token){
+        try (FileOutputStream fos = this.getContext().openFileOutput(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE)) {
+            fos.write(token.getBytes());
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void readToken(){
+        String token = "";
+        try (FileInputStream fis = this.getContext().openFileInput(CodeUtils.ConnectionTokenFileName)) {
+            BufferedReader br =new BufferedReader(new InputStreamReader(fis));
+            String strLine;
+            while ((strLine = br.readLine()) != null) {
+                token = token + strLine;
+            }
+            communication_token = token;
+        } catch (FileNotFoundException e) {
+            Toast toast = Toast.makeText(this.getContext(), "token FileNotFoundException" , Toast.LENGTH_SHORT);
+            toast.show();
+            e.printStackTrace();
+        } catch (IOException e) {
+            Toast toast = Toast.makeText(this.getContext(), "token IOException" , Toast.LENGTH_SHORT);
+            toast.show();
+            e.printStackTrace();
+        }
+    }
+
 
     /*
      * SerialListener

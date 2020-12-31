@@ -7,9 +7,20 @@ import android.util.Log;
  */
 public class CodeUtils {
         /**
+         * connection token
+         */
+        public static final String  ConnectionTokenFileName = "connection_token.key";
+        /**
+         * Command step 0 , init step.
+         */
+        public static final String Command_Initialization = "Command_Initialization";
+        /**
         * 連線亂數
         */
         public static final byte BLE_Connect = (byte) 0xC0;
+        public static final String Command_BLE_Connect_C0 = "BLE_Connect_AES_C0";
+        public static final String Command_BLE_Connect_C1 = "BLE_Connect_AES_C1";
+        public static final String Command_BLE_Connect_C2 = "BLE_Connect_AES_XOR";  // C0 XOR C1
         /**
         * 連線永久性Token
         */
