@@ -364,7 +364,16 @@ public class SerialService extends Service implements SerialListener {
                         this.connection_aes_key = new SecretKeySpec(xorkey, 0, xorkey.length, "AES");
                         command_step = CodeUtils.Command_BLE_Connect_C1;
                         //TODO: send this.lock_token with this.connection_aes_key to device.
-                        byte[] command = CodeUtils.getCommandPackage(CodeUtils.UsingOnceTokenConnect,(byte)0x08,this.lock_token.getBytes(),this.incrCommandIV());
+                        byte[] command = CodeUtils.encodeAES(
+                                this.connection_aes_key,
+                                CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                                CodeUtils.getCommandPackage(
+                                        CodeUtils.UsingOnceTokenConnect,
+                                        (byte) this.lock_token.getBytes().length,
+                                        this.lock_token.getBytes(),
+                                        this.incrCommandIV()
+                                )
+                        );
                         try{
                             this.write(command,current_command);
                         } catch (Exception e) {

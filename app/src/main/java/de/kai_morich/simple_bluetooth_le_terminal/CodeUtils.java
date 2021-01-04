@@ -273,7 +273,6 @@ public class CodeUtils {
          * @return
          */
         public static byte[] encodeAES(SecretKey key , String cipher_code , byte[] data) {
-                //      default use AES_Cipher_DL02_H2MB_KPD_Small
                 try {
                         Cipher cipher = Cipher.getInstance(cipher_code);
                         cipher.init(Cipher.ENCRYPT_MODE, key);
