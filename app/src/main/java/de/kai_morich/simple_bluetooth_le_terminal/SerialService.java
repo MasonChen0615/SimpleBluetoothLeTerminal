@@ -39,6 +39,8 @@ public class SerialService extends Service implements SerialListener {
     private SecretKey connection_aes_key;
     private byte current_command = 0x00;
     private String command_step = CodeUtils.Command_Initialization;
+    private int retry = 0;
+    private int retry_wait = 0;
 
     class SerialBinder extends Binder {
         SerialService getService() { return SerialService.this; }
@@ -337,7 +339,7 @@ public class SerialService extends Service implements SerialListener {
                     case CodeUtils.Command_Initialization:
                     case CodeUtils.Command_BLE_Connect_C0:
                         //TODO: decode data payload and xor c0 sent and receive aes key to new connection key.
-                        this.sunionDeviceRandomAESKey(data);
+                        this.sunionDeviceRandomAESKey(commandPackage.getData());
                         byte[] xorkey = this.sunionConnectionAESKey();
                         this.connection_aes_key = new SecretKeySpec(xorkey, 0, xorkey.length, "AES");
                         command_step = CodeUtils.Command_BLE_Connect_C1;
@@ -350,15 +352,25 @@ public class SerialService extends Service implements SerialListener {
                         }
                     case CodeUtils.Command_BLE_Connect_C1:
                         //TODO: receive C1 1 byte data return , receive token , receive lock status
-
+                        switch(commandPackage.getCommand()){
+                            case CodeUtils.InquireToken:
+                                //TODO: receive C1 1 byte data return , receive token , save token.
+                                current_command = CodeUtils.Command_Initialization_Code;
+                                command_step = CodeUtils.Command_Initialization;
+                                break;
+                            case CodeUtils.InquireLockState:
+                                //TODO: lock statis in here , current_command state must release in CodeUtils.InquireToken.
+                                break;
+                        }
                     default:
                         command_step = CodeUtils.Command_Initialization;
                         break;
                 }
                 break;
             default:
-                current_command = CodeUtils.Command_Initialization_Code;
-                command_step = CodeUtils.Command_Initialization;
+//                current_command = CodeUtils.Command_Initialization_Code;
+//                command_step = CodeUtils.Command_Initialization;
+                // not to do.
                 break;
         }
     }

@@ -25,6 +25,8 @@ public class CodeUtils {
         /**
          * Command step 0 , init step.
          */
+        public static final int Retry = 5;
+        public static final int Retry_Wait = 30;
         public static final int Command_Max_Size = 128;
         public static final byte Command_Initialization_Code = (byte) 0x00;
         public static final String Command_Initialization = "Command_Initialization";
