@@ -39,9 +39,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
 
@@ -62,6 +65,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //    private String newline = TextUtil.newline_crlf;
     private String newline = "";
 
+    private final String NAME = "name";
+    private final String CREATION = "creation";
+    private String current_command_select = "";
+    private int current_command_select_position = 0;
     private byte current_command = CodeUtils.Command_Initialization_Code;
 //    private byte[] communication_AES_KEY;  // C1 and C1 aes key xor
 //    private String communication_token = "";
@@ -157,50 +164,62 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         mSpn = (Spinner) view.findViewById(R.id.CommandSpinner);
         mSpn.setOnItemSelectedListener(spnOnItemSelected);
 
+
+        String[] names = getResources().getStringArray(R.array.command_names);
+        String[] creation = getResources().getStringArray(R.array.command_values);
+        ArrayList<HashMap<String, String>> leaders = new ArrayList<HashMap<String, String>>();
+        for(int i = 0; i < names.length; i++){
+            HashMap<String, String> leader = new HashMap<String, String>();
+            leader.put(NAME, names[i]);
+            leader.put(CREATION, creation[i]);
+            leaders.add(leader);
+        }
+
         View sendBtn = view.findViewById(R.id.send_btn);
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
         Button command_button= (Button)view.findViewById(R.id.Command);
         command_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Log.i(Constants.DEBUG_TAG,"command button enable!");
-                try {
-                    KeyGenerator keygen = KeyGenerator.getInstance("AES");
-                    keygen.init(128);
-                    SecretKey key = keygen.generateKey();
-                    byte[] mykey = key.getEncoded();
-                    byte[] message  = CodeUtils.getCommandPackage(CodeUtils.BLE_Connect, (byte)0x10, mykey, service.incrCommandIV());
-                    sendText.setText(CodeUtils.bytesToHex(message));
-                    current_command = CodeUtils.BLE_Connect;
-                    service.sunionAppRandomAESKey(mykey);
-                    Log.i(Constants.DEBUG_TAG,"prepare message in byte:" + CodeUtils.bytesToHex(message));
-                } catch (NoSuchAlgorithmException e) {
-                    e.printStackTrace();
+                Log.i(Constants.DEBUG_TAG,"command prepare:" + leaders.get(current_command_select_position).get(NAME));
+                switch(current_command_select_position){
+                    case 0:  // e.g = leaders.get(0) command.
+                        try {
+                            KeyGenerator keygen = KeyGenerator.getInstance("AES");
+                            keygen.init(128);
+                            SecretKey randomkey = keygen.generateKey();
+                            SecretKey key = new SecretKeySpec(service.lock_aes_key.getBytes(), 0, service.lock_aes_key.getBytes().length, "AES");
+                            byte[] command = CodeUtils.encodeAES(
+                                    key,
+                                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                                    CodeUtils.getCommandPackage(
+                                            CodeUtils.BLE_Connect,
+                                            (byte) randomkey.getEncoded().length,
+                                            randomkey.getEncoded(),
+                                            service.incrCommandIV()
+                                    )
+                            );
+                            byte[] message = CodeUtils.decodeAES(
+                                    key,
+                                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                                    command
+                            );
+                            sendText.setText(CodeUtils.bytesToHex(command));
+                            current_command = CodeUtils.BLE_Connect;
+                            service.sunionAppRandomAESKey(randomkey.getEncoded());
+                            Log.i(Constants.DEBUG_TAG,"prepare message in byte:" + CodeUtils.bytesToHex(command));
+                            Log.i(Constants.DEBUG_TAG,"prepare message aes decode in byte:" + CodeUtils.bytesToHex(message));
+                        } catch (NoSuchAlgorithmException e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    default:
+                        sendText.setText("");
+                        break;
                 }
+
             }
         });
-        try {
-            KeyGenerator keygen = KeyGenerator.getInstance("AES");
-            keygen.init(128);
-            SecretKey key = keygen.generateKey();
-            String message;
-            String decode_message;
-            byte[] encode;
-            byte[] decode;
-
-            message  = "this is 16 bytes";
-            Log.i(Constants.DEBUG_TAG,"test message :" +message);
-            encode = CodeUtils.encodeAES(key,CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,message.getBytes());
-            Log.i(Constants.DEBUG_TAG,"test encode message in byte:" + CodeUtils.bytesToHex(encode));
-            decode = CodeUtils.decodeAES(key,CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,encode);
-            Log.i(Constants.DEBUG_TAG,"test decode message in byte:" + CodeUtils.bytesToHex(encode));
-            decode_message = new String(decode);
-            Log.i(Constants.DEBUG_TAG,"decode message :" +decode_message);
-
-
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
         return view;
     }
 
@@ -210,6 +229,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         public void onItemSelected(AdapterView<?> parent, View v, int position, long id)
         {
             // TODO Auto-generated method stub
+            current_command_select = parent.getItemAtPosition(position).toString();
+            current_command_select_position = position;
             Log.i(Constants.DEBUG_TAG,"command selected:" + parent.getItemAtPosition(position).toString());
         }
 

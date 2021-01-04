@@ -34,10 +34,11 @@ import javax.crypto.spec.SecretKeySpec;
  */
 public class SerialService extends Service implements SerialListener {
 
-    private String lock_token = "85121456";
+    public String lock_token = "85121456";
+    public String lock_aes_key = "SUNION_8512-6108";
     private byte[] app_random_aes_key;
     private byte[] device_random_aes_key;
-    private SecretKey connection_aes_key;
+    private SecretKey connection_aes_key = null;
     private byte current_command = 0x00;
     private String command_step = CodeUtils.Command_Initialization;
     private int retry = 0;
@@ -257,7 +258,7 @@ public class SerialService extends Service implements SerialListener {
                 if (listener != null) {
                     mainLooper.post(() -> {
                         if (listener != null) { //Run command logic in here
-                            if ((data.length / 16) == 0){
+                            if ((data.length % 16) == 0){
                                 sunionCommandHandler(data);
                             }
                             listener.onSerialRead(data);
@@ -351,8 +352,19 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    private void resetCommandState(){
+        this.current_command = CodeUtils.Command_Initialization_Code;
+        this.command_step = CodeUtils.Command_Initialization;
+    }
+
     private void sunionCommandHandler(byte[] data){
-        SunionCommandPayload commandPackage = CodeUtils.decodeCommandPackage(data);
+        SunionCommandPayload commandPackage;
+        if (this.connection_aes_key == null){
+            SecretKey key = new SecretKeySpec(this.lock_aes_key.getBytes(), 0, this.lock_aes_key.getBytes().length, "AES");
+            commandPackage = CodeUtils.decodeCommandPackage(CodeUtils.decodeAES(key,CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data));
+        } else {
+            commandPackage = CodeUtils.decodeCommandPackage(CodeUtils.decodeAES(this.connection_aes_key,CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data));
+        }
         switch(current_command){
             case CodeUtils.BLE_Connect:
                 switch(command_step){
@@ -377,6 +389,8 @@ public class SerialService extends Service implements SerialListener {
                         try{
                             this.write(command,current_command);
                         } catch (Exception e) {
+                            //command write fail, reset command step.
+                            resetCommandState();
                             onSerialIoError(e);
                         }
                     case CodeUtils.Command_BLE_Connect_C1:
@@ -384,14 +398,14 @@ public class SerialService extends Service implements SerialListener {
                         switch(commandPackage.getCommand()){
                             case CodeUtils.InquireToken:
                                 //TODO: receive C1 1 byte data return , receive token , save token.
-                                current_command = CodeUtils.Command_Initialization_Code;
-                                command_step = CodeUtils.Command_Initialization;
+                                resetCommandState();
                                 break;
                             case CodeUtils.InquireLockState:
                                 //TODO: lock statis in here , current_command state must release in CodeUtils.InquireToken.
                                 break;
                         }
                     default:
+                        //retry c0.
                         command_step = CodeUtils.Command_Initialization;
                         break;
                 }

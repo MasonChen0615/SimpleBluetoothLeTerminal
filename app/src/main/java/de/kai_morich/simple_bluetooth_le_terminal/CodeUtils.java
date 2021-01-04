@@ -177,8 +177,10 @@ public class CodeUtils {
                                 command_len = b;
                                 if (data.length < command_len) {
                                         //some receive error in here.
+                                        return new SunionCommandPayload((byte)0x00,0,new byte[]{},0);
+                                } else {
+                                        command_data = new byte[command_len]; //resize
                                 }
-                                command_data = new byte[command_len]; //resize
                         } else {
                                 command_data[count-2] = b;
                         }
