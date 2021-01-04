@@ -19,8 +19,13 @@ import androidx.core.app.NotificationCompat;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.Queue;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * create notification and queue serial data while activity is not in the foreground
@@ -28,6 +33,10 @@ import java.util.Queue;
  */
 public class SerialService extends Service implements SerialListener {
 
+    private String lock_token = "85121456";
+    private byte[] app_random_aes_key;
+    private byte[] device_random_aes_key;
+    private SecretKey connection_aes_key;
     private byte current_command = 0x00;
     private String command_step = CodeUtils.Command_Initialization;
 
@@ -242,7 +251,10 @@ public class SerialService extends Service implements SerialListener {
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {
-                        if (listener != null) {
+                        if (listener != null) { //Run command logic in here
+                            if ((data.length / 16) == 0){
+                                sunionCommandHandler(data);
+                            }
                             listener.onSerialRead(data);
                         } else {
                             queue1.add(new QueueItem(QueueType.Read, data, null));
@@ -277,4 +289,77 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    public static void sortDecendingSize(byte[]... arrays) {
+        Arrays.sort(arrays, new Comparator<byte[]>() {
+            @Override
+            public int compare(byte[] lhs, byte[] rhs) {
+                if (lhs.length > rhs.length)
+                    return -1;
+                if (lhs.length < rhs.length)
+                    return 1;
+                else
+                    return 0;
+            }
+        });
+    }
+
+    public static byte[] xor(byte[]... arrays) {
+        if (arrays.length == 0) {
+            return null;
+        }
+        sortDecendingSize(arrays);
+        byte[] result = new byte[arrays[0].length];
+        for (byte[] array : arrays) {
+            for (int i = 0; i < array.length; i++) {
+                result[i] ^= array[i];
+            }
+        }
+        return result;
+    }
+
+    public void sunionAppRandomAESKey(byte[] data){
+        this.app_random_aes_key = data;
+    }
+
+    public void sunionDeviceRandomAESKey(byte[] data){
+        this.device_random_aes_key = data;
+    }
+
+    public byte[] sunionConnectionAESKey(){
+        return xor(this.app_random_aes_key,this.device_random_aes_key);
+    }
+
+    private void sunionCommandHandler(byte[] data){
+        SunionCommandPayload commandPackage = CodeUtils.decodeCommandPackage(data);
+        switch(current_command){
+            case CodeUtils.BLE_Connect:
+                switch(command_step){
+                    case CodeUtils.Command_Initialization:
+                    case CodeUtils.Command_BLE_Connect_C0:
+                        //TODO: decode data payload and xor c0 sent and receive aes key to new connection key.
+                        this.sunionDeviceRandomAESKey(data);
+                        byte[] xorkey = this.sunionConnectionAESKey();
+                        this.connection_aes_key = new SecretKeySpec(xorkey, 0, xorkey.length, "AES");
+                        command_step = CodeUtils.Command_BLE_Connect_C1;
+                        //TODO: send this.lock_token with this.connection_aes_key to device.
+                        byte[] command = CodeUtils.getCommandPackage(CodeUtils.UsingOnceTokenConnect,(byte)0x08,this.lock_token.getBytes());
+                        try{
+                            this.write(command,current_command);
+                        } catch (Exception e) {
+                            onSerialIoError(e);
+                        }
+                    case CodeUtils.Command_BLE_Connect_C1:
+                        //TODO: receive C1 1 byte data return , receive token , receive lock status
+
+                    default:
+                        command_step = CodeUtils.Command_Initialization;
+                        break;
+                }
+                break;
+            default:
+                current_command = CodeUtils.Command_Initialization_Code;
+                command_step = CodeUtils.Command_Initialization;
+                break;
+        }
+    }
 }

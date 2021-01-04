@@ -62,9 +62,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //    private String newline = TextUtil.newline_crlf;
     private String newline = "";
 
-    private byte current_command = 0x00;
-    private byte[] communication_AES_KEY;  // C1 and C1 aes key xor
-    private String communication_token = "";
+    private byte current_command = CodeUtils.Command_Initialization_Code;
+//    private byte[] communication_AES_KEY;  // C1 and C1 aes key xor
+//    private String communication_token = "";
 
     /*
      * Lifecycle
@@ -172,12 +172,35 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     byte[] message  = CodeUtils.getCommandPackage(CodeUtils.BLE_Connect, (byte)0x10, mykey);
                     sendText.setText(CodeUtils.bytesToHex(message));
                     current_command = CodeUtils.BLE_Connect;
+                    service.sunionAppRandomAESKey(mykey);
                     Log.i(Constants.DEBUG_TAG,"prepare message in byte:" + CodeUtils.bytesToHex(message));
                 } catch (NoSuchAlgorithmException e) {
                     e.printStackTrace();
                 }
             }
         });
+        try {
+            KeyGenerator keygen = KeyGenerator.getInstance("AES");
+            keygen.init(128);
+            SecretKey key = keygen.generateKey();
+            String message;
+            String decode_message;
+            byte[] encode;
+            byte[] decode;
+
+            message  = "this is 16 bytes";
+            Log.i(Constants.DEBUG_TAG,"test message :" +message);
+            encode = CodeUtils.encodeAES(key,CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,message.getBytes());
+            Log.i(Constants.DEBUG_TAG,"test encode message in byte:" + CodeUtils.bytesToHex(encode));
+            decode = CodeUtils.decodeAES(key,CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,encode);
+            Log.i(Constants.DEBUG_TAG,"test decode message in byte:" + CodeUtils.bytesToHex(encode));
+            decode_message = new String(decode);
+            Log.i(Constants.DEBUG_TAG,"decode message :" +decode_message);
+
+
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
         return view;
     }
 
@@ -330,7 +353,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             while ((strLine = br.readLine()) != null) {
                 token = token + strLine;
             }
-            communication_token = token;
+//            communication_token = token;
         } catch (FileNotFoundException e) {
             Toast toast = Toast.makeText(this.getContext(), "token FileNotFoundException" , Toast.LENGTH_SHORT);
             toast.show();
@@ -359,7 +382,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     @Override
-    public void onSerialRead(byte[] data) {
+    public void onSerialRead(byte[] data) { //Override listener onSerialRead for ui , can run handle in service.
         receive(data);
     }
 

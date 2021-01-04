@@ -2,21 +2,45 @@ package de.kai_morich.simple_bluetooth_le_terminal;
 
 import android.util.Log;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+
 /**
  * Created by Maya on 2020/12/16.
  */
 public class CodeUtils {
+        public static final String AES_Cipher_DL02_H2MB_KPD_Small = "AES/ECB/NoPadding";
         /**
          * connection token
          */
-        public static final String  ConnectionTokenFileName = "connection_token.key";
+        public static final String ConnectionTokenFileName = "connection_token.key";
         /**
          * Command step 0 , init step.
          */
+        public static final int Command_Max_Size = 128;
+        public static final byte Command_Initialization_Code = (byte) 0x00;
         public static final String Command_Initialization = "Command_Initialization";
         /**
         * 連線亂數
         */
+//        AES_Key1( C0, 16, RandNum1) send.
+//        AES_Key1( C0, 16, RandNum2) get.
+//        將 RandNum1 與 RandNum2 做 XOR 得到 Key2
+//        AES_Key2( C1, 8, token) send.
+//        AES_Key2( C1, 1, Data) get.
+//        Delay 100ms
+//        若 Device 不認識此 token, 就會直接 Close Connection
+//        AES_Key2( 新的永久 token)
+//        Delay 100ms
+//        AES_Key2( 鎖體狀態)
         public static final byte BLE_Connect = (byte) 0xC0;
         public static final String Command_BLE_Connect_C0 = "BLE_Connect_AES_C0";
         public static final String Command_BLE_Connect_C1 = "BLE_Connect_AES_C1";
@@ -123,6 +147,29 @@ public class CodeUtils {
         */
         public static final byte DeletePinCode = (byte) 0xEE;
 
+        public static SunionCommandPayload decodeCommandPackage(byte[] data){
+                byte command = 0x00;
+                int command_len = 0;
+                byte[] command_data = new byte[CodeUtils.Command_Max_Size];
+
+                int count = 0;
+                for(byte b : data){
+                        if (count == 0) {
+                                command = b;
+                        } else if (count == 1) {
+                                command_len = b;
+                                if (data.length < command_len) {
+                                        //some receive error in here.
+                                }
+                                command_data = new byte[command_len]; //resize
+                        } else {
+                                command_data[count-2] = b;
+                        }
+                        count++;
+                }
+                return new SunionCommandPayload(command,command_len,command_data);
+        }
+
         public static byte[] getCommandPackage(byte action , byte len , byte[] data){
                 byte[] print;
                 byte[] command = new byte[data.length + 2];
@@ -197,4 +244,61 @@ public class CodeUtils {
                 }
                 return new String(hexChars);
         }
+
+        /**
+         *  encodeAES need package message in 16 / 32 / 64 / 128 len size
+         * @param key
+         * @param cipher_code
+         * @param data
+         * @return
+         */
+        public static byte[] encodeAES(SecretKey key , String cipher_code , byte[] data) {
+                //      default use AES_Cipher_DL02_H2MB_KPD_Small
+                try {
+                        Cipher cipher = Cipher.getInstance(cipher_code);
+                        cipher.init(Cipher.ENCRYPT_MODE, key);
+                        byte[] ciphertext = cipher.doFinal(data);
+                        return ciphertext;
+                } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                } catch (NoSuchPaddingException e) {
+                        e.printStackTrace();
+                } catch (BadPaddingException e) {
+                        e.printStackTrace();
+                } catch (IllegalBlockSizeException e) {
+                        e.printStackTrace();
+                } catch (InvalidKeyException e) {
+                        e.printStackTrace();
+                }
+                return new byte[]{};
+        }
+
+        /**
+         * decodeAES need package message in 16 / 32 / 64 / 128 len size
+         * @param key
+         * @param cipher_code
+         * @param data
+         * @return
+         */
+        public static byte[] decodeAES(SecretKey key , String cipher_code , byte[] data){
+                //      default use AES_Cipher_DL02_H2MB_KPD_Small
+                try {
+                        Cipher cipher = Cipher.getInstance(cipher_code);
+                        cipher.init(Cipher.DECRYPT_MODE, key);
+                        byte[] ciphertext = cipher.doFinal(data);
+                        return ciphertext;
+                } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                } catch (NoSuchPaddingException e) {
+                        e.printStackTrace();
+                } catch (BadPaddingException e) {
+                        e.printStackTrace();
+                } catch (IllegalBlockSizeException e) {
+                        e.printStackTrace();
+                } catch (InvalidKeyException e) {
+                        e.printStackTrace();
+                }
+                return new byte[]{};
+        }
+
 }
