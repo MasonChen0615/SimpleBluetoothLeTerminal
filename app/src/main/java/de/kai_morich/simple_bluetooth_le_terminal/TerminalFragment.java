@@ -169,7 +169,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     keygen.init(128);
                     SecretKey key = keygen.generateKey();
                     byte[] mykey = key.getEncoded();
-                    byte[] message  = CodeUtils.getCommandPackage(CodeUtils.BLE_Connect, (byte)0x10, mykey);
+                    byte[] message  = CodeUtils.getCommandPackage(CodeUtils.BLE_Connect, (byte)0x10, mykey, service.incrCommandIV());
                     sendText.setText(CodeUtils.bytesToHex(message));
                     current_command = CodeUtils.BLE_Connect;
                     service.sunionAppRandomAESKey(mykey);

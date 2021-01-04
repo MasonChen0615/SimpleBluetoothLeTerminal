@@ -150,15 +150,30 @@ public class CodeUtils {
         public static final byte DeletePinCode = (byte) 0xEE;
 
         public static SunionCommandPayload decodeCommandPackage(byte[] data){
+//                index	說明
+//                01	流水號 low byte   0
+//                02	流水號 high byte  1
+//                03	Fuction           2
+//                04	Data Len          3
+//                05	Data Start        4
+//                .......
+//                DataLen + 4	Data End
+//                .......	亂數
+//                16x	亂數
+                int command_iv = 0;
                 byte command = 0x00;
                 int command_len = 0;
                 byte[] command_data = new byte[CodeUtils.Command_Max_Size];
 
                 int count = 0;
                 for(byte b : data){
-                        if (count == 0) {
-                                command = b;
+                        if (count == 0) {  // 0 ~ 1
+                                command_iv = command_iv | b;  //low byte
                         } else if (count == 1) {
+                                command_iv = command_iv | b << 8; //high byte
+                        } else if (count == 2) {
+                                command = b;
+                        } else if (count == 3) {
                                 command_len = b;
                                 if (data.length < command_len) {
                                         //some receive error in here.
@@ -169,16 +184,19 @@ public class CodeUtils {
                         }
                         count++;
                 }
-                return new SunionCommandPayload(command,command_len,command_data);
+                return new SunionCommandPayload(command,command_len,command_data,command_iv);
         }
 
-        public static byte[] getCommandPackage(byte action , byte len , byte[] data){
+        public static byte[] getCommandPackage(byte action , byte len , byte[] data , int command_iv){
                 byte[] print;
-                byte[] command = new byte[data.length + 2];
-                command[0] = action; // command of 連線亂數
-                command[1] = len; // command data size
+                byte[] command = new byte[data.length + 4];
+
+                command[0] = (byte) (command_iv % 256) ; // low byte
+                command[1] = (byte) (command_iv / 256); // high byte
+                command[2] = action; // command of 連線亂數
+                command[3] = len; // command data size
                 for(int i = 0 ; i < data.length ; i++) {
-                        command[i+2] = data[i];
+                        command[i+4] = data[i];
                 }
                 Log.i("AAA","command data size is  : " + command.length);
                 int currten_len = command.length;

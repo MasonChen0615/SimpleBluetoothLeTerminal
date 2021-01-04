@@ -12,6 +12,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
@@ -41,6 +42,7 @@ public class SerialService extends Service implements SerialListener {
     private String command_step = CodeUtils.Command_Initialization;
     private int retry = 0;
     private int retry_wait = 0;
+    private int command_iv = 1;
 
     class SerialBinder extends Binder {
         SerialService getService() { return SerialService.this; }
@@ -97,6 +99,7 @@ public class SerialService extends Service implements SerialListener {
     }
 
     public void disconnect() {
+        this.resetCommandIV();
         connected = false; // ignore data,errors while disconnecting
         cancelNotification();
         if(socket != null) {
@@ -331,6 +334,23 @@ public class SerialService extends Service implements SerialListener {
         return xor(this.app_random_aes_key,this.device_random_aes_key);
     }
 
+    public int incrCommandIV(){
+        synchronized (this) {
+            this.command_iv++;
+            if (this.command_iv > 65536){
+                Log.i(Constants.DEBUG_TAG,"command_iv over 65536!");
+            }
+            return this.command_iv;
+        }
+    }
+
+    public int resetCommandIV(){
+        synchronized (this) {
+            this.command_iv = 1;
+            return this.command_iv;
+        }
+    }
+
     private void sunionCommandHandler(byte[] data){
         SunionCommandPayload commandPackage = CodeUtils.decodeCommandPackage(data);
         switch(current_command){
@@ -344,7 +364,7 @@ public class SerialService extends Service implements SerialListener {
                         this.connection_aes_key = new SecretKeySpec(xorkey, 0, xorkey.length, "AES");
                         command_step = CodeUtils.Command_BLE_Connect_C1;
                         //TODO: send this.lock_token with this.connection_aes_key to device.
-                        byte[] command = CodeUtils.getCommandPackage(CodeUtils.UsingOnceTokenConnect,(byte)0x08,this.lock_token.getBytes());
+                        byte[] command = CodeUtils.getCommandPackage(CodeUtils.UsingOnceTokenConnect,(byte)0x08,this.lock_token.getBytes(),this.incrCommandIV());
                         try{
                             this.write(command,current_command);
                         } catch (Exception e) {
