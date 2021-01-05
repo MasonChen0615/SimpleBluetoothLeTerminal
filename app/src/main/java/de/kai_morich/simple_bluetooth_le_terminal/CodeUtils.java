@@ -36,24 +36,13 @@ public class CodeUtils {
         /**
         * 連線亂數
         */
-//        AES_Key1( C0, 16, RandNum1) send.
-//        AES_Key1( C0, 16, RandNum2) get.
-//        將 RandNum1 與 RandNum2 做 XOR 得到 Key2
-//        AES_Key2( C1, 8, token) send.
-//        AES_Key2( C1, 1, Data) get.
-//        Delay 100ms
-//        若 Device 不認識此 token, 就會直接 Close Connection
-//        AES_Key2( 新的永久 token)
-//        Delay 100ms
-//        AES_Key2( 鎖體狀態)
         public static final byte BLE_Connect = (byte) 0xC0;
-        public static final String Command_BLE_Connect_C0 = "BLE_Connect_AES_C0";
-        public static final String Command_BLE_Connect_C1 = "BLE_Connect_AES_C1";
-        public static final String Command_BLE_Connect_C2 = "BLE_Connect_AES_XOR";  // C0 XOR C1
         /**
         * 連線永久性Token
         */
         public static final byte Connect = (byte) 0xC1;
+        public static final String Connect_UsingTokenConnect = "Use Token";
+        public static final String Connect_UsingOnceTokenConnect = "Use Once Token";
         /**
         * 連線一次性Token
         */
@@ -294,6 +283,15 @@ public class CodeUtils {
                 return new byte[]{};
         }
 
+        public static Boolean isBytesCanRead(byte[] data){
+                for(byte b : data){
+                        if ( b < (byte)0x20 || b > (byte)0x7E){
+                                return false;
+                        }
+                }
+                return true;
+        }
+
         public static void selfTest(){
                 try {
                         KeyGenerator keygen = KeyGenerator.getInstance("AES");
@@ -302,6 +300,7 @@ public class CodeUtils {
                         final int min = 0;
                         final int max = 65535;
                         String[] testarr = {
+                                "", // use 16 tank
                                 "thisis 8", // use 16 tank
                                 "this is 10",  // use 16 tank
                                 "this is 16 bytes",  // use 32 tank
@@ -315,7 +314,7 @@ public class CodeUtils {
                                 "this is 128 bytes Hello world! ~~~~~~ There are more things in heaven and earth, Horatio, than are dreamt of in your philosophy.", // use 128 tank , overflow
                         };
                         int[] ans_size = {
-                                16,16,32,48,48,64,80,80,96,112,0
+                                16,16,16,32,48,48,64,80,80,96,112,0
                         };
                         int index = 0;
                         for(String test : testarr){

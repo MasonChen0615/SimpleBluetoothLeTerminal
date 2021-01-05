@@ -10,5 +10,8 @@ class Constants {
     // values have to be unique within each app
     static final int NOTIFY_MANAGER_START_FOREGROUND_SERVICE = 1001;
     static final String DEBUG_TAG = "AAA";
+    static final String EXCHANGE_LOCKTOKEN_PREFIX = "@LOCKTOKEN@";
+    static final String EXCHANGE_MESSAGE_PREFIX = "@MESSAGE@";
+
     private Constants() {}
 }

@@ -118,10 +118,18 @@ public class SerialService extends Service implements SerialListener {
     }
 
     public void write(byte[] data , byte command) throws IOException {
+        setCurrentCommand(command);
         if(!connected)
             throw new IOException("not connected");
         socket.write(data);
+    }
+
+    public void write(byte[] data , byte command , String step) throws IOException {
         setCurrentCommand(command);
+        setCurrentCommandStep(step);
+        if(!connected)
+            throw new IOException("not connected");
+        socket.write(data);
     }
 
     public void attach(SerialListener listener) {
@@ -247,6 +255,8 @@ public class SerialService extends Service implements SerialListener {
                             listener.onSerialRead(data);
                             if ((data.length % 16) == 0){
                                 sunionCommandHandler(data);
+                            }else{
+                                printMessage("wait command");
                             }
                         } else {
                             queue1.add(new QueueItem(QueueType.Read, data, null));
@@ -325,6 +335,23 @@ public class SerialService extends Service implements SerialListener {
         return xor(this.app_random_aes_key,this.device_random_aes_key);
     }
 
+
+    public void resetRetry(){
+        synchronized (this) {
+            this.retry = 0;
+        }
+    }
+
+    public int incrRetry(){
+        synchronized (this) {
+            this.retry++;
+            if (this.retry > CodeUtils.Retry){
+                Log.i(Constants.DEBUG_TAG,"retry wait over " + CodeUtils.Retry + " message.");
+            }
+            return this.retry;
+        }
+    }
+
     public int incrCommandIV(){
         synchronized (this) {
             this.command_iv++;
@@ -360,6 +387,13 @@ public class SerialService extends Service implements SerialListener {
         synchronized (this) {
             this.current_command = CodeUtils.Command_Initialization_Code;
             this.command_step = CodeUtils.Command_Initialization;
+            resetRetry();
+        }
+    }
+
+    public void setConnectionAESKey(SecretKey key){
+        synchronized (this) {
+            this.connection_aes_key = key;
         }
     }
 
@@ -410,6 +444,16 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    public void printMessage(String message){
+        String mymessage = Constants.EXCHANGE_MESSAGE_PREFIX + message + Constants.EXCHANGE_MESSAGE_PREFIX;
+        listener.onSerialRead(message.getBytes());
+    }
+
+    public void exchangeToken(String token){
+        String mytoken = Constants.EXCHANGE_LOCKTOKEN_PREFIX + token + Constants.EXCHANGE_LOCKTOKEN_PREFIX;
+        listener.onSerialRead(mytoken.getBytes());
+    }
+
     synchronized public void sunionCommandHandler(byte[] data){
         SunionCommandPayload commandPackage = CodeUtils.decodeCommandPackage(CodeUtils.decodeAES(getConnectionAESKey(),CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data));
         if (commandPackage.getCommand() != CodeUtils.Command_Initialization_Code){
@@ -421,82 +465,120 @@ public class SerialService extends Service implements SerialListener {
         }
         switch(getCurrentCommand()){
             case CodeUtils.BLE_Connect:
+                if (commandPackage.getCommand() == CodeUtils.BLE_Connect) {
+                    //decode data payload and xor c0 sent and receive aes key to new connection key.
+                    this.sunionDeviceRandomAESKey(commandPackage.getData());
+                    byte[] xorkey = this.sunionConnectionAESKey();
+                    setConnectionAESKey(new SecretKeySpec(xorkey, 0, xorkey.length, "AES"));
+                    resetCommandState();
+                } else {
+                    if (incrRetry() > CodeUtils.Retry){
+                        resetCommandState();
+                        Log.e(Constants.DEBUG_TAG, "release resetCommandState when receive message are not target");
+                    }
+                }
+                break;
+            case CodeUtils.Connect :  // same CodeUtils.UsingOnceTokenConnect
                 switch(getCurrentCommandStep()){
-                    case CodeUtils.Command_Initialization:
-                    case CodeUtils.Command_BLE_Connect_C0:
-                        //decode data payload and xor c0 sent and receive aes key to new connection key.
-                        this.sunionDeviceRandomAESKey(commandPackage.getData());
-                        byte[] xorkey = this.sunionConnectionAESKey();
-                        this.connection_aes_key = new SecretKeySpec(xorkey, 0, xorkey.length, "AES");
-                        //send this.lock_token with this.connection_aes_key to device.
-                        byte[] command = CodeUtils.encodeAES(
-                                this.connection_aes_key,
-                                CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
-                                CodeUtils.getCommandPackage(
-                                        CodeUtils.UsingOnceTokenConnect,
-                                        (byte) this.lock_token.getBytes().length,
-                                        this.lock_token.getBytes(),
-                                        this.incrCommandIV()
-                                )
-                        );
-                        try{
-                            this.write(command,CodeUtils.BLE_Connect);
-                            setCurrentCommandStep(CodeUtils.Command_BLE_Connect_C1);
-                        } catch (Exception e) {
-                            //command write fail, reset command step.
-                            resetCommandState();
-                            onSerialIoError(e);
-                        }
-                    case CodeUtils.Command_BLE_Connect_C1:
-                        //receive C1 1 byte data return , receive token , receive lock status
-                        switch(commandPackage.getCommand()){
-                            case CodeUtils.InquireToken:
-                                //receive C1 1 byte data return , receive token , check and save token.
-                                byte[] payload = commandPackage.getData();
-                                if (payload.length > 0){
-                                    //  3:一次性, 2:拒絕, 1:合法, 0:不合法
-                                    switch(payload[0]){
-                                        case (byte) 0x00:
-                                            // illegal
-                                            break;
-                                        case (byte) 0x01:
-                                            // allow (legal)
-
-                                            break;
-                                        case (byte) 0x02:
-                                            // reject
-                                            break;
-                                        case (byte) 0x03:
-                                            // one-time pass
-                                            setSecretLockToken(new SunionToken(3,this.lock_token.getBytes()));
-                                            break;
-                                        default:
-                                            //noop
-                                            Log.i(Constants.DEBUG_TAG,"token type check but payload value not in 0x00 ~ 0x03 , row payload:" + CodeUtils.bytesToHex(payload));
-                                            break;
-                                    }
+                    case CodeUtils.Connect_UsingTokenConnect:
+                        if (commandPackage.getCommand() == CodeUtils.Connect) {
+                            //receive C1 1 byte data return , receive token , check and save token.
+                            byte[] payload = commandPackage.getData();
+                            if (payload.length > 0) {
+                                //  3:一次性, 2:拒絕, 1:合法, 0:不合法
+                                switch (payload[0]) {
+                                    case (byte) 0x00:
+                                        // illegal
+                                        printMessage("token illegal 0x00");
+                                        break;
+                                    case (byte) 0x01:
+                                        // allow (legal)
+                                        printMessage("token allow 0x01");
+                                        break;
+                                    case (byte) 0x02:
+                                        // reject
+                                        printMessage("token reject 0x02");
+                                        break;
+                                    case (byte) 0x03:
+                                        // one-time pass
+                                        printMessage("token one-time pass 0x03");
+                                        break;
+                                    default:
+                                        //noop
+                                        printMessage("token unknown state " + CodeUtils.bytesToHex(new byte[]{payload[0]}));
+                                        Log.i(Constants.DEBUG_TAG, "token type check but payload value not in 0x00 ~ 0x03 , row payload:" + CodeUtils.bytesToHex(payload));
+                                        break;
                                 }
-//                                setSecretLockToken(String token);
                                 resetCommandState();
-                                Log.i(Constants.DEBUG_TAG,"release resetCommandState where receive InquireToken in Command_BLE_Connect_C1 at BLE_Connect");
-                                break;
-                            case CodeUtils.InquireLockState:
-                                //TODO: lock statis in here , skip or do some other.
-                                break;
+                                Log.i(Constants.DEBUG_TAG, "release resetCommandState where receive InquireToken in Connect_UsingTokenConnect at Connect");
+                            }
+                        } else {
+                            if (incrRetry() > CodeUtils.Retry){
+                                resetCommandState();
+                                Log.e(Constants.DEBUG_TAG, "release resetCommandState when receive message are not target");
+                            }
                         }
-                    default:
-                        //retry c0.
-                        setCurrentCommandStep(CodeUtils.Command_Initialization);
+                        break;
+                    case CodeUtils.Connect_UsingOnceTokenConnect:
+                        if (commandPackage.getCommand() == CodeUtils.Connect) {
+                            //receive C1 1 byte data return , receive token , check and save token.
+                            byte[] payload = commandPackage.getData();
+                            if (payload.length > 0) {
+                                //  3:一次性, 2:拒絕, 1:合法, 0:不合法
+                                switch (payload[0]) {
+                                    case (byte) 0x00:
+                                        // illegal
+                                        printMessage("token illegal 0x00");
+                                        break;
+                                    case (byte) 0x01:
+                                        // allow (legal)
+                                        printMessage("token allow 0x01");
+                                        break;
+                                    case (byte) 0x02:
+                                        // reject
+                                        printMessage("token reject 0x02");
+                                        break;
+                                    case (byte) 0x03:
+                                        // one-time pass
+                                        printMessage("token one-time pass 0x03");
+                                        break;
+                                    default:
+                                        //noop
+                                        printMessage("token unknown state " + CodeUtils.bytesToHex(new byte[]{payload[0]}));
+                                        Log.i(Constants.DEBUG_TAG, "token type check but payload value not in 0x00 ~ 0x03 , row payload:" + CodeUtils.bytesToHex(payload));
+                                        break;
+                                }
+                            }
+                        } else if (commandPackage.getCommand() == CodeUtils.InquireToken) {
+                            byte[] payload = commandPackage.getData();
+                            setSecretLockToken(new SunionToken(1, payload));
+                            exchangeToken("AAA");
+                            resetCommandState();
+                            Log.i(Constants.DEBUG_TAG, "release resetCommandState where receive InquireToken in Connect_UsingOnceTokenConnect at InquireToken");
+                        } else {
+                            if (incrRetry() > CodeUtils.Retry){
+                                resetCommandState();
+                                Log.e(Constants.DEBUG_TAG, "release resetCommandState when receive message are not target");
+                            }
+                        }
                         break;
                 }
                 break;
-            default:
-                switch(commandPackage.getCommand()){
-                    case CodeUtils.InquireLockState:
-                        //TODO: lock statis in here , current_command state must release in CodeUtils.InquireToken.
-                        Log.i(Constants.DEBUG_TAG,"LockState in default");
-                        break;
+            case CodeUtils.DirectionCheck:
+                if (commandPackage.getCommand() == CodeUtils.DirectionCheck) {
+
+                } else {
+                    if (incrRetry() > CodeUtils.Retry){
+                        resetCommandState();
+                        Log.e(Constants.DEBUG_TAG, "release resetCommandState when receive message are not target");
+                    }
                 }
+                break;
+            default:
+                if (commandPackage.getCommand() == CodeUtils.InquireLockState) {
+                    Log.i(Constants.DEBUG_TAG,"LockState in default");
+                }
+                listener.onSerialRead("wait command".getBytes());
                 // not to do.
                 break;
         }

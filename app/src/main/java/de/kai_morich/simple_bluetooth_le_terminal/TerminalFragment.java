@@ -41,7 +41,6 @@ import java.io.InputStreamReader;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Random;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -71,6 +70,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private String current_command_select = "";
     private int current_command_select_position = 0;
     private byte current_command = CodeUtils.Command_Initialization_Code;
+    private String command_step = CodeUtils.Command_Initialization;
 //    private byte[] communication_AES_KEY;  // C1 and C1 aes key xor
 //    private String communication_token = "";
 
@@ -175,6 +175,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             leader.put(CREATION, creation[i]);
             leaders.add(leader);
         }
+        readToken();
 
         View sendBtn = view.findViewById(R.id.send_btn);
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
@@ -182,38 +183,28 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         command_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                resetState();
                 Log.i(Constants.DEBUG_TAG,"command prepare:" + leaders.get(current_command_select_position).get(NAME));
                 switch(current_command_select_position){
-                    case 0:  // e.g = leaders.get(0) command.
-                        try {
-                            KeyGenerator keygen = KeyGenerator.getInstance("AES");
-                            keygen.init(128);
-                            SecretKey randomkey = keygen.generateKey();
-                            SecretKey key = new SecretKeySpec(service.lock_aes_key.getBytes(), 0, service.lock_aes_key.getBytes().length, "AES");
-                            byte[] command = CodeUtils.encodeAES(
-                                    key,
-                                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
-                                    CodeUtils.getCommandPackage(
-                                            CodeUtils.BLE_Connect,
-                                            (byte) randomkey.getEncoded().length,
-                                            randomkey.getEncoded(),
-                                            service.incrCommandIV()
-                                    )
-                            );
-                            byte[] message = CodeUtils.decodeAES(
-                                    key,
-                                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
-                                    command
-                            );
-                            sendText.setText(CodeUtils.bytesToHex(command));
-                            current_command = CodeUtils.BLE_Connect;
-//                            current_command = CodeUtils.Command_Initialization_Code;
-                            service.sunionAppRandomAESKey(randomkey.getEncoded());
-                            Log.i(Constants.DEBUG_TAG,"prepare message in byte:" + CodeUtils.bytesToHex(command));
-                            Log.i(Constants.DEBUG_TAG,"prepare message aes decode in byte:" + CodeUtils.bytesToHex(message));
-                        } catch (NoSuchAlgorithmException e) {
-                            e.printStackTrace();
+                    case 0:  // e.g = leaders.get(0) command. //0xC0	連線亂數
+                        commandC0();
+                        break;
+                    case 1:  //0xC1	連線 Token
+                        SunionToken token  = service.getSecretLockToken();
+                        if (token.getToken().length != 0){
+                            SpannableStringBuilder spn = new SpannableStringBuilder("Using Token"+'\n');
+                            spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                            receiveText.append(spn);
+                            commandC1(token);
+                        }else{
+                            SpannableStringBuilder spn = new SpannableStringBuilder("Using Once Token"+'\n');
+                            spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                            receiveText.append(spn);
+                            commandC1UsingOnce();
                         }
+                        break;
+                    case 2:  //0xCC	左右判定
+                        commandCC();
                         break;
                     default:
                         sendText.setText("");
@@ -223,6 +214,107 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             }
         });
         return view;
+    }
+
+    private void resetState(){
+        current_command = CodeUtils.Command_Initialization_Code;
+        command_step = CodeUtils.Command_Initialization;
+    }
+
+    private void commandC0(){
+        try {
+            KeyGenerator keygen = KeyGenerator.getInstance("AES");
+            keygen.init(128);
+            SecretKey randomkey = keygen.generateKey();
+            SecretKey key = new SecretKeySpec(service.lock_aes_key.getBytes(), 0, service.lock_aes_key.getBytes().length, "AES");
+            byte[] command = CodeUtils.encodeAES(
+                    key,
+                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                    CodeUtils.getCommandPackage(
+                            CodeUtils.BLE_Connect,
+                            (byte) randomkey.getEncoded().length,
+                            randomkey.getEncoded(),
+                            service.incrCommandIV()
+                    )
+            );
+            byte[] message = CodeUtils.decodeAES(
+                    key,
+                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                    command
+            );
+            sendText.setText(CodeUtils.bytesToHex(command));
+            current_command = CodeUtils.BLE_Connect;
+            service.sunionAppRandomAESKey(randomkey.getEncoded());
+            Log.i(Constants.DEBUG_TAG,"prepare message in byte:" + CodeUtils.bytesToHex(command));
+            Log.i(Constants.DEBUG_TAG,"prepare message aes decode in byte:" + CodeUtils.bytesToHex(message));
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void commandC1(SunionToken token){
+        SecretKey key = service.getConnectionAESKey();
+        if ( key != null ){
+            byte[] command = CodeUtils.encodeAES(
+                    key,
+                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                    CodeUtils.getCommandPackage(
+                            CodeUtils.Connect,
+                            (byte) token.getToken().length,
+                            token.getToken(),
+                            service.incrCommandIV()
+                    )
+            );
+            current_command = CodeUtils.Connect;
+            command_step = CodeUtils.Connect_UsingTokenConnect;
+            sendText.setText(CodeUtils.bytesToHex(command));
+        } else {
+            errorToast("Missing Connection AES Key");
+            sendText.setText("");
+        }
+    }
+
+    private void commandC1UsingOnce(){
+        SecretKey key = service.getConnectionAESKey();
+        if ( key != null ){
+            byte[] command = CodeUtils.encodeAES(
+                    key,
+                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                    CodeUtils.getCommandPackage(
+                            CodeUtils.Connect,
+                            (byte) service.lock_token.length(),
+                            service.lock_token.getBytes(),
+                            service.incrCommandIV()
+                    )
+            );
+            current_command = CodeUtils.Connect;
+            command_step = CodeUtils.Connect_UsingOnceTokenConnect;
+            sendText.setText(CodeUtils.bytesToHex(command));
+        } else {
+            errorToast("Missing Connection AES Key");
+            sendText.setText("");
+        }
+    }
+
+    private void commandCC(){
+        SecretKey key = service.getConnectionAESKey();
+        if ( key != null ){
+            byte[] command = CodeUtils.encodeAES(
+                    key,
+                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                    CodeUtils.getCommandPackage(
+                            CodeUtils.DirectionCheck,
+                            (byte) 0x00,
+                            new byte[]{},
+                            service.incrCommandIV()
+                    )
+            );
+            current_command = CodeUtils.DirectionCheck;
+            sendText.setText(CodeUtils.bytesToHex(command));
+        } else {
+            errorToast("Missing Connection AES Key");
+            sendText.setText("");
+        }
     }
 
     private AdapterView.OnItemSelectedListener spnOnItemSelected = new AdapterView.OnItemSelectedListener()
@@ -268,20 +360,25 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             builder.create().show();
             return true;
         } else if (id == R.id.hex) {
-            hexEnabled = !hexEnabled;
-            sendText.setText("");
+            //hexEnabled = !hexEnabled;
+            //sendText.setText("");
             hexWatcher.enable(hexEnabled);
             sendText.setHint(hexEnabled ? "HEX mode" : "");
             item.setChecked(hexEnabled);
             return true;
         } else if (id == R.id.token) {
-            String token = readToken();
-            Toast toast = Toast.makeText(this.getContext(), "token :" + token , Toast.LENGTH_SHORT);
+            deleteToken();
+            Toast toast = Toast.makeText(this.getContext(), "token delete" , Toast.LENGTH_SHORT);
             toast.show();
             return true;
         } else {
             return super.onOptionsItemSelected(item);
         }
+    }
+
+    private void errorToast(String message){
+        Toast toast = Toast.makeText(this.getContext(), "Error :" + message , Toast.LENGTH_SHORT);
+        toast.show();
     }
 
     /*
@@ -328,7 +425,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             SpannableStringBuilder spn = new SpannableStringBuilder(msg+'\n');
             spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             receiveText.append(spn);
-            service.write(data,current_command);
+            service.write(data,current_command,command_step);
         } catch (Exception e) {
             onSerialIoError(e);
         }
@@ -336,7 +433,28 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     private void receive(byte[] data) {
         if(hexEnabled) {
-            receiveText.append(TextUtil.toHexString(data) + '\n');
+            if(CodeUtils.isBytesCanRead(data)){
+                String s = new String(data);
+                if (s.indexOf(Constants.EXCHANGE_MESSAGE_PREFIX) == 0) { // must in head
+                    int prefix = Constants.EXCHANGE_MESSAGE_PREFIX.length();
+                    String message = s.substring(prefix, s.length() - prefix);
+                    SpannableStringBuilder spn = new SpannableStringBuilder(message+'\n');
+                    spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    receiveText.append(spn);
+                } else if (s.indexOf(Constants.EXCHANGE_LOCKTOKEN_PREFIX) == 0) {
+                    saveToken(service.getSecretLockToken().getToken());
+                    String token = new String(service.getSecretLockToken().getToken());
+                    SpannableStringBuilder spn = new SpannableStringBuilder("receive token : " + token +'\n');
+                    spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    receiveText.append(spn);
+                } else {
+                    SpannableStringBuilder spn = new SpannableStringBuilder(s+'\n');
+                    spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    receiveText.append(spn);
+                }
+            }else{
+                receiveText.append(TextUtil.toHexString(data) + '\n');
+            }
         } else {
             String msg = new String(data);
             if(newline.equals(TextUtil.newline_crlf) && msg.length() > 0) {
@@ -360,9 +478,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.append(spn);
     }
 
-    private void saveToken(String token){
+    private void saveToken(byte[] token){
         try (FileOutputStream fos = this.getContext().openFileOutput(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE)) {
-            fos.write(token.getBytes());
+            fos.write(token);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -372,7 +490,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     private String readToken(){
         String token = "";
-        SunionToken check_token = service.getSecretLockToken();
+        String default_token = service.lock_token;
         try (FileInputStream fis = this.getContext().openFileInput(CodeUtils.ConnectionTokenFileName)) {
             BufferedReader br =new BufferedReader(new InputStreamReader(fis));
             String strLine;
@@ -388,13 +506,18 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             toast.show();
             e.printStackTrace();
         }
-        if (check_token.getTokenType() == 1){
-            return check_token.getToken().toString();
-        } else {
+
+        if (token.length() > 0){
+            service.setSecretLockToken(new SunionToken(1,token.getBytes()));
             return token;
+        }else{
+            return default_token;
         }
     }
 
+    private void deleteToken(){
+        this.getContext().deleteFile(CodeUtils.ConnectionTokenFileName);
+    }
 
     /*
      * SerialListener
