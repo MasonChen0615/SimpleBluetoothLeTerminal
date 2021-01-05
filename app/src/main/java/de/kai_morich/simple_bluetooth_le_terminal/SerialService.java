@@ -17,6 +17,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -36,6 +37,7 @@ public class SerialService extends Service implements SerialListener {
 
     public String lock_token = "85121456";
     public String lock_aes_key = "SUNION_8512-6108";
+    public SunionToken secret_lock_token = new SunionToken(0,new byte[]{});
     private byte[] app_random_aes_key;
     private byte[] device_random_aes_key;
     private SecretKey connection_aes_key = null;
@@ -119,23 +121,7 @@ public class SerialService extends Service implements SerialListener {
         if(!connected)
             throw new IOException("not connected");
         socket.write(data);
-        current_command = command;
-    }
-
-    private void setCommandStep(String step) throws IOException {
-        Object someObject = new CodeUtils();
-        Class<?> someClass = someObject.getClass();
-        try {
-            Field someField = someClass.getField(step);
-            command_step = step;
-        } catch (NoSuchFieldException e) {
-            e.printStackTrace();
-            throw new IOException("NoSuchFieldException in this command" + CodeUtils.bytesToHex(new byte[] { current_command }) + "" );
-        }
-    }
-
-    private void ResetCommandStep(){
-        command_step = CodeUtils.Command_Initialization;
+        setCurrentCommand(command);
     }
 
     public void attach(SerialListener listener) {
@@ -388,6 +374,42 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    public void setCurrentCommand(byte command){
+        synchronized (this) {
+            current_command = command;
+        }
+    }
+
+    public byte getCurrentCommand(){
+        synchronized (this) {
+            return current_command;
+        }
+    }
+
+    public void setCurrentCommandStep(String step){
+        synchronized (this) {
+            command_step = step;
+        }
+    }
+
+    public String getCurrentCommandStep(){
+        synchronized (this) {
+            return command_step;
+        }
+    }
+
+    public void setSecretLockToken(SunionToken token){
+        synchronized (this) {
+            secret_lock_token = token;
+        }
+    }
+
+    public SunionToken getSecretLockToken(){
+        synchronized (this) {
+            return secret_lock_token;
+        }
+    }
+
     synchronized public void sunionCommandHandler(byte[] data){
         SunionCommandPayload commandPackage = CodeUtils.decodeCommandPackage(CodeUtils.decodeAES(getConnectionAESKey(),CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data));
         if (commandPackage.getCommand() != CodeUtils.Command_Initialization_Code){
@@ -397,17 +419,16 @@ public class SerialService extends Service implements SerialListener {
             Log.i(Constants.DEBUG_TAG,message);
 //            listener.onSerialRead(message.getBytes());
         }
-        switch(current_command){
+        switch(getCurrentCommand()){
             case CodeUtils.BLE_Connect:
-                switch(command_step){
+                switch(getCurrentCommandStep()){
                     case CodeUtils.Command_Initialization:
                     case CodeUtils.Command_BLE_Connect_C0:
-                        //TODO: decode data payload and xor c0 sent and receive aes key to new connection key.
+                        //decode data payload and xor c0 sent and receive aes key to new connection key.
                         this.sunionDeviceRandomAESKey(commandPackage.getData());
                         byte[] xorkey = this.sunionConnectionAESKey();
                         this.connection_aes_key = new SecretKeySpec(xorkey, 0, xorkey.length, "AES");
-                        command_step = CodeUtils.Command_BLE_Connect_C1;
-                        //TODO: send this.lock_token with this.connection_aes_key to device.
+                        //send this.lock_token with this.connection_aes_key to device.
                         byte[] command = CodeUtils.encodeAES(
                                 this.connection_aes_key,
                                 CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
@@ -419,32 +440,63 @@ public class SerialService extends Service implements SerialListener {
                                 )
                         );
                         try{
-                            this.write(command,current_command);
+                            this.write(command,CodeUtils.BLE_Connect);
+                            setCurrentCommandStep(CodeUtils.Command_BLE_Connect_C1);
                         } catch (Exception e) {
                             //command write fail, reset command step.
                             resetCommandState();
                             onSerialIoError(e);
                         }
                     case CodeUtils.Command_BLE_Connect_C1:
-                        //TODO: receive C1 1 byte data return , receive token , receive lock status
+                        //receive C1 1 byte data return , receive token , receive lock status
                         switch(commandPackage.getCommand()){
                             case CodeUtils.InquireToken:
-                                //TODO: receive C1 1 byte data return , receive token , save token.
+                                //receive C1 1 byte data return , receive token , check and save token.
+                                byte[] payload = commandPackage.getData();
+                                if (payload.length > 0){
+                                    //  3:一次性, 2:拒絕, 1:合法, 0:不合法
+                                    switch(payload[0]){
+                                        case (byte) 0x00:
+                                            // illegal
+                                            break;
+                                        case (byte) 0x01:
+                                            // allow (legal)
+
+                                            break;
+                                        case (byte) 0x02:
+                                            // reject
+                                            break;
+                                        case (byte) 0x03:
+                                            // one-time pass
+                                            setSecretLockToken(new SunionToken(3,this.lock_token.getBytes()));
+                                            break;
+                                        default:
+                                            //noop
+                                            Log.i(Constants.DEBUG_TAG,"token type check but payload value not in 0x00 ~ 0x03 , row payload:" + CodeUtils.bytesToHex(payload));
+                                            break;
+                                    }
+                                }
+//                                setSecretLockToken(String token);
                                 resetCommandState();
+                                Log.i(Constants.DEBUG_TAG,"release resetCommandState where receive InquireToken in Command_BLE_Connect_C1 at BLE_Connect");
                                 break;
                             case CodeUtils.InquireLockState:
-                                //TODO: lock statis in here , current_command state must release in CodeUtils.InquireToken.
+                                //TODO: lock statis in here , skip or do some other.
                                 break;
                         }
                     default:
                         //retry c0.
-                        command_step = CodeUtils.Command_Initialization;
+                        setCurrentCommandStep(CodeUtils.Command_Initialization);
                         break;
                 }
                 break;
             default:
-//                current_command = CodeUtils.Command_Initialization_Code;
-//                command_step = CodeUtils.Command_Initialization;
+                switch(commandPackage.getCommand()){
+                    case CodeUtils.InquireLockState:
+                        //TODO: lock statis in here , current_command state must release in CodeUtils.InquireToken.
+                        Log.i(Constants.DEBUG_TAG,"LockState in default");
+                        break;
+                }
                 // not to do.
                 break;
         }

@@ -41,6 +41,7 @@ import java.io.InputStreamReader;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -274,7 +275,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             item.setChecked(hexEnabled);
             return true;
         } else if (id == R.id.token) {
-            readToken();
+            String token = readToken();
+            Toast toast = Toast.makeText(this.getContext(), "token :" + token , Toast.LENGTH_SHORT);
+            toast.show();
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -367,15 +370,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
-    private void readToken(){
+    private String readToken(){
         String token = "";
+        SunionToken check_token = service.getSecretLockToken();
         try (FileInputStream fis = this.getContext().openFileInput(CodeUtils.ConnectionTokenFileName)) {
             BufferedReader br =new BufferedReader(new InputStreamReader(fis));
             String strLine;
             while ((strLine = br.readLine()) != null) {
                 token = token + strLine;
             }
-//            communication_token = token;
         } catch (FileNotFoundException e) {
             Toast toast = Toast.makeText(this.getContext(), "token FileNotFoundException" , Toast.LENGTH_SHORT);
             toast.show();
@@ -384,6 +387,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             Toast toast = Toast.makeText(this.getContext(), "token IOException" , Toast.LENGTH_SHORT);
             toast.show();
             e.printStackTrace();
+        }
+        if (check_token.getTokenType() == 1){
+            return check_token.getToken().toString();
+        } else {
+            return token;
         }
     }
 

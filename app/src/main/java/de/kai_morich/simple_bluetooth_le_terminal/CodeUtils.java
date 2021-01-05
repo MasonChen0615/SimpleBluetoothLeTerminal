@@ -6,12 +6,15 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Created by Maya on 2020/12/16.
@@ -205,57 +208,23 @@ public class CodeUtils {
                 }
                 Log.i("AAA","command data size is  : " + command.length);
                 int currten_len = command.length;
-                if (currten_len <= 16) {
-                        print = new byte[16];
-                        int i;
-                        for( i = 0 ; i < currten_len ; i++){
-                                print[i] = command[i];
-                        }
-                        for( int j = 0 ; i < print.length ; j++){
-                                print[j] = (byte)0x3D; // = padding text
-                        }
-                        Log.i("AAA","command package size " + print.length);
-                        Log.i("AAA","command in hex : " + CodeUtils.bytesToHex(print));
-                        return print;
-                }else if (currten_len > 16 && currten_len <= 32) {
-                        print = new byte[32];
-                        int i;
-                        for( i = 0 ; i < currten_len ; i++){
-                                print[i] = command[i];
-                        }
-                        for( int j = i ; j < print.length ; j++){
-                                print[j] = (byte)0x3D; // = padding text
-                        }
-                        Log.i("AAA","command package size " + print.length);
-                        Log.i("AAA","command in hex : " + CodeUtils.bytesToHex(print));
-                        return print;
-                }else if (currten_len > 32 && currten_len <= 64){
-                        print = new byte[64];
-                        int i;
-                        for( i = 0 ; i < currten_len ; i++){
-                                print[i] = command[i];
-                        }
-                        for( int j = i ; j < print.length ; j++){
-                                print[j] = (byte)0x3D; // = padding text
-                        }
-                        Log.i("AAA","command package size " + print.length);
-                        Log.i("AAA","command in hex : " + CodeUtils.bytesToHex(print));
-                        return print;
-                }else if (currten_len > 64 && currten_len <= 128){
-                        print = new byte[128];
-                        int i;
-                        for( i = 0 ; i < currten_len ; i++){
-                                print[i] = command[i];
-                        }
-                        for( int j = i ; j < print.length ; j++){
-                                print[j] = (byte)0x3D; // = padding text
-                        }
-                        Log.i("AAA","command package size " + print.length);
-                        Log.i("AAA","command in hex : " + CodeUtils.bytesToHex(print));
-                        return print;
-                }else{
+                int tank_size = ( (currten_len / 16) + ( ( (currten_len % 16) > 0 ) ? 1 : 0 ) ) * 16;
+
+                if (tank_size >= 128 ){
                         Log.e("AAA","command data size is  : " + command.length + " too big");
                         return new byte[0];
+                } else {
+                        print = new byte[tank_size];
+                        int i;
+                        for( i = 0 ; i < currten_len ; i++){
+                                print[i] = command[i];
+                        }
+                        for( int j = i ; j < print.length ; j++){
+                                print[j] = (byte)0x3D; // = padding text
+                        }
+                        Log.i("AAA","command package size " + print.length);
+                        Log.i("AAA","command in hex : " + CodeUtils.bytesToHex(print));
+                        return print;
                 }
         }
 
@@ -325,4 +294,51 @@ public class CodeUtils {
                 return new byte[]{};
         }
 
+        public static void selfTest(){
+                try {
+                        KeyGenerator keygen = KeyGenerator.getInstance("AES");
+                        keygen.init(128);
+                        SecretKey key = keygen.generateKey();
+                        final int min = 0;
+                        final int max = 65535;
+                        String[] testarr = {
+                                "thisis 8", // use 16 tank
+                                "this is 10",  // use 16 tank
+                                "this is 16 bytes",  // use 32 tank
+                                "this is 32 bytes Hello world!~~~", // use 48 tank
+                                "this is 43 bytes Hello world! ~~~ All that ",  // use 48 tank
+                                "this is 48 bytes Hello world! ~~~ All that glist",  // use 64 tank
+                                "this is 64 bytes Hello world! ~~~ All that glisters is not gold.", // use 80 tank
+                                "this is 70 bytes Hello world! There are more things in heaven and eart", // use 80 tank
+                                "this is 90 bytes Hello world! There are more things in heaven and earth, Horatio, than are", // use 96 tank
+                                "this is 108 bytes Hello world!There are more things in heaven and earth, Horatio, than are dreamt of in your", //use 112 tank
+                                "this is 128 bytes Hello world! ~~~~~~ There are more things in heaven and earth, Horatio, than are dreamt of in your philosophy.", // use 128 tank , overflow
+                        };
+                        int[] ans_size = {
+                                16,16,32,48,48,64,80,80,96,112,0
+                        };
+                        int index = 0;
+                        for(String test : testarr){
+                                int random = new Random().nextInt((max - min) + 1) + min;
+                                byte[] tmp = CodeUtils.encodeAES(
+                                        key,
+                                        CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                                        CodeUtils.getCommandPackage(
+                                                CodeUtils.BLE_Connect,
+                                                (byte) test.length(),
+                                                test.getBytes(),
+                                                random
+                                        )
+                                );
+                                Log.i(Constants.DEBUG_TAG,"test message in byte:" + CodeUtils.bytesToHex(tmp));
+                                if(tmp.length != ans_size[index]){
+                                        Log.e(Constants.DEBUG_TAG,"test message size fail , exp " + ans_size[index] + " but got " + tmp.length);
+                                }
+                                index++;
+                        }
+                        Log.i(Constants.DEBUG_TAG,"test message size pass");
+                } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                }
+        }
 }

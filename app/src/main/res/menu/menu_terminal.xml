@@ -17,6 +17,6 @@
         app:showAsAction="never" />
     <item
         android:id="@+id/token"
-        android:title="Get Token"
+        android:title="Check Token"
         app:showAsAction="never" />
 </menu>
