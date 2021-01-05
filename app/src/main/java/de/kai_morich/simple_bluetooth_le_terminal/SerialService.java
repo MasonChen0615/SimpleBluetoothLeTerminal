@@ -258,10 +258,10 @@ public class SerialService extends Service implements SerialListener {
                 if (listener != null) {
                     mainLooper.post(() -> {
                         if (listener != null) { //Run command logic in here
+                            listener.onSerialRead(data);
                             if ((data.length % 16) == 0){
                                 sunionCommandHandler(data);
                             }
-                            listener.onSerialRead(data);
                         } else {
                             queue1.add(new QueueItem(QueueType.Read, data, null));
                         }
@@ -349,6 +349,20 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    public int incrCommandIV(int new_command_iv){
+        synchronized (this) {
+            if (new_command_iv > this.command_iv) {
+                this.command_iv = new_command_iv + 1;
+            }else{
+                this.command_iv++;
+            }
+            if (this.command_iv > 65536){
+                Log.i(Constants.DEBUG_TAG,"command_iv over 65536!");
+            }
+            return this.command_iv;
+        }
+    }
+
     public int resetCommandIV(){
         synchronized (this) {
             this.command_iv = 1;
@@ -376,6 +390,13 @@ public class SerialService extends Service implements SerialListener {
 
     synchronized public void sunionCommandHandler(byte[] data){
         SunionCommandPayload commandPackage = CodeUtils.decodeCommandPackage(CodeUtils.decodeAES(getConnectionAESKey(),CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data));
+        if (commandPackage.getCommand() != CodeUtils.Command_Initialization_Code){
+            incrCommandIV(commandPackage.getCommandVI());
+            Log.i(Constants.DEBUG_TAG,"sunionCommandHandler decode aes :" + CodeUtils.bytesToHex(CodeUtils.decodeAES(getConnectionAESKey(),CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data)));
+            String message = "Decode : command " + CodeUtils.bytesToHex(new byte[]{commandPackage.getCommand()}) + " len " + commandPackage.getLength() + " sn " + commandPackage.getCommandVI() + " data " + CodeUtils.bytesToHex(commandPackage.getData());
+            Log.i(Constants.DEBUG_TAG,message);
+//            listener.onSerialRead(message.getBytes());
+        }
         switch(current_command){
             case CodeUtils.BLE_Connect:
                 switch(command_step){
