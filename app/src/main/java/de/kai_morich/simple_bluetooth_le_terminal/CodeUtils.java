@@ -182,7 +182,10 @@ public class CodeUtils {
                                         command_data = new byte[command_len]; //resize
                                 }
                         } else {
-                                command_data[count-2] = b;
+                                int padding = count - 4;
+                                if (padding < command_len) {
+                                        command_data[padding] = b;
+                                }
                         }
                         count++;
                 }

@@ -324,11 +324,15 @@ public class SerialService extends Service implements SerialListener {
     }
 
     public void sunionAppRandomAESKey(byte[] data){
-        this.app_random_aes_key = data;
+        synchronized (this) {
+            this.app_random_aes_key = data;
+        }
     }
 
     public void sunionDeviceRandomAESKey(byte[] data){
-        this.device_random_aes_key = data;
+        synchronized (this) {
+            this.device_random_aes_key = data;
+        }
     }
 
     public byte[] sunionConnectionAESKey(){
@@ -353,18 +357,25 @@ public class SerialService extends Service implements SerialListener {
     }
 
     private void resetCommandState(){
-        this.current_command = CodeUtils.Command_Initialization_Code;
-        this.command_step = CodeUtils.Command_Initialization;
+        synchronized (this) {
+            this.current_command = CodeUtils.Command_Initialization_Code;
+            this.command_step = CodeUtils.Command_Initialization;
+        }
     }
 
-    private void sunionCommandHandler(byte[] data){
-        SunionCommandPayload commandPackage;
-        if (this.connection_aes_key == null){
-            SecretKey key = new SecretKeySpec(this.lock_aes_key.getBytes(), 0, this.lock_aes_key.getBytes().length, "AES");
-            commandPackage = CodeUtils.decodeCommandPackage(CodeUtils.decodeAES(key,CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data));
-        } else {
-            commandPackage = CodeUtils.decodeCommandPackage(CodeUtils.decodeAES(this.connection_aes_key,CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data));
+    public SecretKey getConnectionAESKey(){
+        synchronized (this) {
+            if (this.connection_aes_key == null){
+                SecretKey key = new SecretKeySpec(this.lock_aes_key.getBytes(), 0, this.lock_aes_key.getBytes().length, "AES");
+                return key;
+            }else{
+                return this.connection_aes_key;
+            }
         }
+    }
+
+    synchronized public void sunionCommandHandler(byte[] data){
+        SunionCommandPayload commandPackage = CodeUtils.decodeCommandPackage(CodeUtils.decodeAES(getConnectionAESKey(),CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data));
         switch(current_command){
             case CodeUtils.BLE_Connect:
                 switch(command_step){

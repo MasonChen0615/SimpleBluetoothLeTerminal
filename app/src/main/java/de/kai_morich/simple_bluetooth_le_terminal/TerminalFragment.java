@@ -206,6 +206,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                             );
                             sendText.setText(CodeUtils.bytesToHex(command));
                             current_command = CodeUtils.BLE_Connect;
+//                            current_command = CodeUtils.Command_Initialization_Code;
                             service.sunionAppRandomAESKey(randomkey.getEncoded());
                             Log.i(Constants.DEBUG_TAG,"prepare message in byte:" + CodeUtils.bytesToHex(command));
                             Log.i(Constants.DEBUG_TAG,"prepare message aes decode in byte:" + CodeUtils.bytesToHex(message));
