@@ -12,19 +12,40 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.Queue;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * create notification and queue serial data while activity is not in the foreground
  * use listener chain: SerialSocket -> SerialService -> UI fragment
  */
 public class SerialService extends Service implements SerialListener {
+
+    public String lock_token = "85121456";
+    public String lock_aes_key = "SUNION_8512-6108";
+    public SunionToken secret_lock_token = new SunionToken(0,new byte[]{});
+    private byte[] app_random_aes_key;
+    private byte[] device_random_aes_key;
+    private SecretKey connection_aes_key = null;
+    private byte current_command = 0x00;
+    private String command_step = CodeUtils.Command_Initialization;
+    private int retry = 0;
+    private int retry_wait = 0;
+    private int command_iv = 1;
 
     class SerialBinder extends Binder {
         SerialService getService() { return SerialService.this; }
@@ -81,6 +102,7 @@ public class SerialService extends Service implements SerialListener {
     }
 
     public void disconnect() {
+        this.resetCommandIV();
         connected = false; // ignore data,errors while disconnecting
         cancelNotification();
         if(socket != null) {
@@ -93,6 +115,13 @@ public class SerialService extends Service implements SerialListener {
         if(!connected)
             throw new IOException("not connected");
         socket.write(data);
+    }
+
+    public void write(byte[] data , byte command) throws IOException {
+        if(!connected)
+            throw new IOException("not connected");
+        socket.write(data);
+        setCurrentCommand(command);
     }
 
     public void attach(SerialListener listener) {
@@ -214,8 +243,11 @@ public class SerialService extends Service implements SerialListener {
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {
-                        if (listener != null) {
+                        if (listener != null) { //Run command logic in here
                             listener.onSerialRead(data);
+                            if ((data.length % 16) == 0){
+                                sunionCommandHandler(data);
+                            }
                         } else {
                             queue1.add(new QueueItem(QueueType.Read, data, null));
                         }
@@ -249,4 +281,224 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    public static void sortDecendingSize(byte[]... arrays) {
+        Arrays.sort(arrays, new Comparator<byte[]>() {
+            @Override
+            public int compare(byte[] lhs, byte[] rhs) {
+                if (lhs.length > rhs.length)
+                    return -1;
+                if (lhs.length < rhs.length)
+                    return 1;
+                else
+                    return 0;
+            }
+        });
+    }
+
+    public static byte[] xor(byte[]... arrays) {
+        if (arrays.length == 0) {
+            return null;
+        }
+        sortDecendingSize(arrays);
+        byte[] result = new byte[arrays[0].length];
+        for (byte[] array : arrays) {
+            for (int i = 0; i < array.length; i++) {
+                result[i] ^= array[i];
+            }
+        }
+        return result;
+    }
+
+    public void sunionAppRandomAESKey(byte[] data){
+        synchronized (this) {
+            this.app_random_aes_key = data;
+        }
+    }
+
+    public void sunionDeviceRandomAESKey(byte[] data){
+        synchronized (this) {
+            this.device_random_aes_key = data;
+        }
+    }
+
+    public byte[] sunionConnectionAESKey(){
+        return xor(this.app_random_aes_key,this.device_random_aes_key);
+    }
+
+    public int incrCommandIV(){
+        synchronized (this) {
+            this.command_iv++;
+            if (this.command_iv > 65536){
+                Log.i(Constants.DEBUG_TAG,"command_iv over 65536!");
+            }
+            return this.command_iv;
+        }
+    }
+
+    public int incrCommandIV(int new_command_iv){
+        synchronized (this) {
+            if (new_command_iv > this.command_iv) {
+                this.command_iv = new_command_iv + 1;
+            }else{
+                this.command_iv++;
+            }
+            if (this.command_iv > 65536){
+                Log.i(Constants.DEBUG_TAG,"command_iv over 65536!");
+            }
+            return this.command_iv;
+        }
+    }
+
+    public int resetCommandIV(){
+        synchronized (this) {
+            this.command_iv = 1;
+            return this.command_iv;
+        }
+    }
+
+    private void resetCommandState(){
+        synchronized (this) {
+            this.current_command = CodeUtils.Command_Initialization_Code;
+            this.command_step = CodeUtils.Command_Initialization;
+        }
+    }
+
+    public SecretKey getConnectionAESKey(){
+        synchronized (this) {
+            if (this.connection_aes_key == null){
+                SecretKey key = new SecretKeySpec(this.lock_aes_key.getBytes(), 0, this.lock_aes_key.getBytes().length, "AES");
+                return key;
+            }else{
+                return this.connection_aes_key;
+            }
+        }
+    }
+
+    public void setCurrentCommand(byte command){
+        synchronized (this) {
+            current_command = command;
+        }
+    }
+
+    public byte getCurrentCommand(){
+        synchronized (this) {
+            return current_command;
+        }
+    }
+
+    public void setCurrentCommandStep(String step){
+        synchronized (this) {
+            command_step = step;
+        }
+    }
+
+    public String getCurrentCommandStep(){
+        synchronized (this) {
+            return command_step;
+        }
+    }
+
+    public void setSecretLockToken(SunionToken token){
+        synchronized (this) {
+            secret_lock_token = token;
+        }
+    }
+
+    public SunionToken getSecretLockToken(){
+        synchronized (this) {
+            return secret_lock_token;
+        }
+    }
+
+    synchronized public void sunionCommandHandler(byte[] data){
+        SunionCommandPayload commandPackage = CodeUtils.decodeCommandPackage(CodeUtils.decodeAES(getConnectionAESKey(),CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data));
+        if (commandPackage.getCommand() != CodeUtils.Command_Initialization_Code){
+            incrCommandIV(commandPackage.getCommandVI());
+            Log.i(Constants.DEBUG_TAG,"sunionCommandHandler decode aes :" + CodeUtils.bytesToHex(CodeUtils.decodeAES(getConnectionAESKey(),CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data)));
+            String message = "Decode : command " + CodeUtils.bytesToHex(new byte[]{commandPackage.getCommand()}) + " len " + commandPackage.getLength() + " sn " + commandPackage.getCommandVI() + " data " + CodeUtils.bytesToHex(commandPackage.getData());
+            Log.i(Constants.DEBUG_TAG,message);
+//            listener.onSerialRead(message.getBytes());
+        }
+        switch(getCurrentCommand()){
+            case CodeUtils.BLE_Connect:
+                switch(getCurrentCommandStep()){
+                    case CodeUtils.Command_Initialization:
+                    case CodeUtils.Command_BLE_Connect_C0:
+                        //decode data payload and xor c0 sent and receive aes key to new connection key.
+                        this.sunionDeviceRandomAESKey(commandPackage.getData());
+                        byte[] xorkey = this.sunionConnectionAESKey();
+                        this.connection_aes_key = new SecretKeySpec(xorkey, 0, xorkey.length, "AES");
+                        //send this.lock_token with this.connection_aes_key to device.
+                        byte[] command = CodeUtils.encodeAES(
+                                this.connection_aes_key,
+                                CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                                CodeUtils.getCommandPackage(
+                                        CodeUtils.UsingOnceTokenConnect,
+                                        (byte) this.lock_token.getBytes().length,
+                                        this.lock_token.getBytes(),
+                                        this.incrCommandIV()
+                                )
+                        );
+                        try{
+                            this.write(command,CodeUtils.BLE_Connect);
+                            setCurrentCommandStep(CodeUtils.Command_BLE_Connect_C1);
+                        } catch (Exception e) {
+                            //command write fail, reset command step.
+                            resetCommandState();
+                            onSerialIoError(e);
+                        }
+                    case CodeUtils.Command_BLE_Connect_C1:
+                        //receive C1 1 byte data return , receive token , receive lock status
+                        switch(commandPackage.getCommand()){
+                            case CodeUtils.InquireToken:
+                                //receive C1 1 byte data return , receive token , check and save token.
+                                byte[] payload = commandPackage.getData();
+                                if (payload.length > 0){
+                                    //  3:一次性, 2:拒絕, 1:合法, 0:不合法
+                                    switch(payload[0]){
+                                        case (byte) 0x00:
+                                            // illegal
+                                            break;
+                                        case (byte) 0x01:
+                                            // allow (legal)
+
+                                            break;
+                                        case (byte) 0x02:
+                                            // reject
+                                            break;
+                                        case (byte) 0x03:
+                                            // one-time pass
+                                            setSecretLockToken(new SunionToken(3,this.lock_token.getBytes()));
+                                            break;
+                                        default:
+                                            //noop
+                                            Log.i(Constants.DEBUG_TAG,"token type check but payload value not in 0x00 ~ 0x03 , row payload:" + CodeUtils.bytesToHex(payload));
+                                            break;
+                                    }
+                                }
+//                                setSecretLockToken(String token);
+                                resetCommandState();
+                                Log.i(Constants.DEBUG_TAG,"release resetCommandState where receive InquireToken in Command_BLE_Connect_C1 at BLE_Connect");
+                                break;
+                            case CodeUtils.InquireLockState:
+                                //TODO: lock statis in here , skip or do some other.
+                                break;
+                        }
+                    default:
+                        //retry c0.
+                        setCurrentCommandStep(CodeUtils.Command_Initialization);
+                        break;
+                }
+                break;
+            default:
+                switch(commandPackage.getCommand()){
+                    case CodeUtils.InquireLockState:
+                        //TODO: lock statis in here , current_command state must release in CodeUtils.InquireToken.
+                        Log.i(Constants.DEBUG_TAG,"LockState in default");
+                        break;
+                }
+                // not to do.
+                break;
+        }
+    }
 }

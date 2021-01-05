@@ -10,4 +10,62 @@
         <item>\u000a</item>
         <item></item>
     </string-array>
+    <string-array name="command_names">
+        <item>0xC0	連線亂數</item>
+        <item>0xC1	連線 Token</item>
+        <item>0xCC	左右判定</item>
+        <item>0xCE	回復原廠設定</item>
+        <item>0xD0	查詢鎖體名稱</item>
+        <item>0xD1	設定鎖體名稱</item>
+        <item>0xD2	查詢鎖體時間</item>
+        <item>0xD3	設定鎖體時間</item>
+        <item>0xD4	查詢鎖體設定檔</item>
+        <item>0xD5	設定鎖體設定檔</item>
+        <item>0xD6	查詢鎖體狀態</item>
+        <item>0xD7	設定鎖體狀態</item>
+        <item>0xE0	查詢 Log 數量</item>
+        <item>0xE1	查詢 Log</item>
+        <item>0xE2	刪除 Log</item>
+        <item>0xE3	保留未使用</item>
+        <item>0xE4	查詢 Token Array</item>
+        <item>0xE5	查詢 Token</item>
+        <item>0xE6	新增一次性 Token</item>
+        <item>0xE7	修改 Token</item>
+        <item>0xE8	刪除 Token</item>
+        <item>0xE9	保留未使用</item>
+        <item>0xEA	查詢 PinCode Array</item>
+        <item>0xEB	查詢 PinCode</item>
+        <item>0xEC	新增 PinCode</item>
+        <item>0xED	修改 PinCode</item>
+        <item>0xEE	刪除 PinCode</item>
+    </string-array>
+    <string-array name="command_values">
+        <item>C0</item>
+        <item>C1</item>
+        <item>CC</item>
+        <item>CE</item>
+        <item>D0</item>
+        <item>D1</item>
+        <item>D2</item>
+        <item>D3</item>
+        <item>D4</item>
+        <item>D5</item>
+        <item>D6</item>
+        <item>D7</item>
+        <item>E0</item>
+        <item>E1</item>
+        <item>E2</item>
+        <item>E3</item>
+        <item>E4</item>
+        <item>E5</item>
+        <item>E6</item>
+        <item>E7</item>
+        <item>E8</item>
+        <item>E9</item>
+        <item>EA</item>
+        <item>EB</item>
+        <item>EC</item>
+        <item>ED</item>
+        <item>EE</item>
+    </string-array>
 </resources>

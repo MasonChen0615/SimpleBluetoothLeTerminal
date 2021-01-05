@@ -2,14 +2,54 @@ package de.kai_morich.simple_bluetooth_le_terminal;
 
 import android.util.Log;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
 /**
  * Created by Maya on 2020/12/16.
  */
 public class CodeUtils {
+        public static final String AES_Cipher_DL02_H2MB_KPD_Small = "AES/ECB/NoPadding";
+        /**
+         * connection token
+         */
+        public static final String ConnectionTokenFileName = "connection_token.key";
+        /**
+         * Command step 0 , init step.
+         */
+        public static final int Retry = 5;
+        public static final int Retry_Wait = 30;
+        public static final int Command_Max_Size = 128;
+        public static final byte Command_Initialization_Code = (byte) 0x00;
+        public static final String Command_Initialization = "Command_Initialization";
         /**
         * 連線亂數
         */
+//        AES_Key1( C0, 16, RandNum1) send.
+//        AES_Key1( C0, 16, RandNum2) get.
+//        將 RandNum1 與 RandNum2 做 XOR 得到 Key2
+//        AES_Key2( C1, 8, token) send.
+//        AES_Key2( C1, 1, Data) get.
+//        Delay 100ms
+//        若 Device 不認識此 token, 就會直接 Close Connection
+//        AES_Key2( 新的永久 token)
+//        Delay 100ms
+//        AES_Key2( 鎖體狀態)
         public static final byte BLE_Connect = (byte) 0xC0;
+        public static final String Command_BLE_Connect_C0 = "BLE_Connect_AES_C0";
+        public static final String Command_BLE_Connect_C1 = "BLE_Connect_AES_C1";
+        public static final String Command_BLE_Connect_C2 = "BLE_Connect_AES_XOR";  // C0 XOR C1
         /**
         * 連線永久性Token
         */
@@ -112,67 +152,79 @@ public class CodeUtils {
         */
         public static final byte DeletePinCode = (byte) 0xEE;
 
-        public static byte[] getCommandPackage(byte action , byte len , byte[] data){
+        public static SunionCommandPayload decodeCommandPackage(byte[] data){
+//                index	說明
+//                01	流水號 low byte   0
+//                02	流水號 high byte  1
+//                03	Fuction           2
+//                04	Data Len          3
+//                05	Data Start        4
+//                .......
+//                DataLen + 4	Data End
+//                .......	亂數
+//                16x	亂數
+                int command_iv = 0;
+                byte command = 0x00;
+                int command_len = 0;
+                byte[] command_data = new byte[CodeUtils.Command_Max_Size];
+
+                int count = 0;
+                for(byte b : data){
+                        if (count == 0) {  // 0 ~ 1
+                                command_iv = command_iv | b;  //low byte
+                        } else if (count == 1) {
+                                command_iv = command_iv | b << 8; //high byte
+                        } else if (count == 2) {
+                                command = b;
+                        } else if (count == 3) {
+                                command_len = b;
+                                if (data.length < command_len) {
+                                        //some receive error in here.
+                                        return new SunionCommandPayload((byte)0x00,0,new byte[]{},0);
+                                } else {
+                                        command_data = new byte[command_len]; //resize
+                                }
+                        } else {
+                                int padding = count - 4;
+                                if (padding < command_len) {
+                                        command_data[padding] = b;
+                                }
+                        }
+                        count++;
+                }
+                return new SunionCommandPayload(command,command_len,command_data,command_iv);
+        }
+
+        public static byte[] getCommandPackage(byte action , byte len , byte[] data , int command_iv){
                 byte[] print;
-                byte[] command = new byte[data.length + 2];
-                command[0] = action; // command of 連線亂數
-                command[1] = len; // command data size
+                byte[] command = new byte[data.length + 4];
+
+                command[0] = (byte) (command_iv % 256) ; // low byte
+                command[1] = (byte) (command_iv / 256); // high byte
+                command[2] = action; // command of 連線亂數
+                command[3] = len; // command data size
                 for(int i = 0 ; i < data.length ; i++) {
-                        command[i+2] = data[i];
+                        command[i+4] = data[i];
                 }
                 Log.i("AAA","command data size is  : " + command.length);
                 int currten_len = command.length;
-                if (currten_len <= 16) {
-                        print = new byte[16];
-                        int i;
-                        for( i = 0 ; i < currten_len ; i++){
-                                print[i] = command[i];
-                        }
-                        for( int j = 0 ; i < print.length ; j++){
-                                print[j] = (byte)0x3D; // = padding text
-                        }
-                        Log.i("AAA","command package size " + print.length);
-                        Log.i("AAA","command in hex : " + CodeUtils.bytesToHex(print));
-                        return print;
-                }else if (currten_len > 16 && currten_len <= 32) {
-                        print = new byte[32];
-                        int i;
-                        for( i = 0 ; i < currten_len ; i++){
-                                print[i] = command[i];
-                        }
-                        for( int j = i ; j < print.length ; j++){
-                                print[j] = (byte)0x3D; // = padding text
-                        }
-                        Log.i("AAA","command package size " + print.length);
-                        Log.i("AAA","command in hex : " + CodeUtils.bytesToHex(print));
-                        return print;
-                }else if (currten_len > 32 && currten_len <= 64){
-                        print = new byte[64];
-                        int i;
-                        for( i = 0 ; i < currten_len ; i++){
-                                print[i] = command[i];
-                        }
-                        for( int j = i ; j < print.length ; j++){
-                                print[j] = (byte)0x3D; // = padding text
-                        }
-                        Log.i("AAA","command package size " + print.length);
-                        Log.i("AAA","command in hex : " + CodeUtils.bytesToHex(print));
-                        return print;
-                }else if (currten_len > 64 && currten_len <= 128){
-                        print = new byte[128];
-                        int i;
-                        for( i = 0 ; i < currten_len ; i++){
-                                print[i] = command[i];
-                        }
-                        for( int j = i ; j < print.length ; j++){
-                                print[j] = (byte)0x3D; // = padding text
-                        }
-                        Log.i("AAA","command package size " + print.length);
-                        Log.i("AAA","command in hex : " + CodeUtils.bytesToHex(print));
-                        return print;
-                }else{
+                int tank_size = ( (currten_len / 16) + ( ( (currten_len % 16) > 0 ) ? 1 : 0 ) ) * 16;
+
+                if (tank_size >= 128 ){
                         Log.e("AAA","command data size is  : " + command.length + " too big");
                         return new byte[0];
+                } else {
+                        print = new byte[tank_size];
+                        int i;
+                        for( i = 0 ; i < currten_len ; i++){
+                                print[i] = command[i];
+                        }
+                        for( int j = i ; j < print.length ; j++){
+                                print[j] = (byte)0x3D; // = padding text
+                        }
+                        Log.i("AAA","command package size " + print.length);
+                        Log.i("AAA","command in hex : " + CodeUtils.bytesToHex(print));
+                        return print;
                 }
         }
 
@@ -185,5 +237,108 @@ public class CodeUtils {
                         hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
                 }
                 return new String(hexChars);
+        }
+
+        /**
+         *  encodeAES need package message in 16 / 32 / 64 / 128 len size
+         * @param key
+         * @param cipher_code
+         * @param data
+         * @return
+         */
+        public static byte[] encodeAES(SecretKey key , String cipher_code , byte[] data) {
+                try {
+                        Cipher cipher = Cipher.getInstance(cipher_code);
+                        cipher.init(Cipher.ENCRYPT_MODE, key);
+                        byte[] ciphertext = cipher.doFinal(data);
+                        return ciphertext;
+                } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                } catch (NoSuchPaddingException e) {
+                        e.printStackTrace();
+                } catch (BadPaddingException e) {
+                        e.printStackTrace();
+                } catch (IllegalBlockSizeException e) {
+                        e.printStackTrace();
+                } catch (InvalidKeyException e) {
+                        e.printStackTrace();
+                }
+                return new byte[]{};
+        }
+
+        /**
+         * decodeAES need package message in 16 / 32 / 64 / 128 len size
+         * @param key
+         * @param cipher_code
+         * @param data
+         * @return
+         */
+        public static byte[] decodeAES(SecretKey key , String cipher_code , byte[] data){
+                //      default use AES_Cipher_DL02_H2MB_KPD_Small
+                try {
+                        Cipher cipher = Cipher.getInstance(cipher_code);
+                        cipher.init(Cipher.DECRYPT_MODE, key);
+                        byte[] ciphertext = cipher.doFinal(data);
+                        return ciphertext;
+                } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                } catch (NoSuchPaddingException e) {
+                        e.printStackTrace();
+                } catch (BadPaddingException e) {
+                        e.printStackTrace();
+                } catch (IllegalBlockSizeException e) {
+                        e.printStackTrace();
+                } catch (InvalidKeyException e) {
+                        e.printStackTrace();
+                }
+                return new byte[]{};
+        }
+
+        public static void selfTest(){
+                try {
+                        KeyGenerator keygen = KeyGenerator.getInstance("AES");
+                        keygen.init(128);
+                        SecretKey key = keygen.generateKey();
+                        final int min = 0;
+                        final int max = 65535;
+                        String[] testarr = {
+                                "thisis 8", // use 16 tank
+                                "this is 10",  // use 16 tank
+                                "this is 16 bytes",  // use 32 tank
+                                "this is 32 bytes Hello world!~~~", // use 48 tank
+                                "this is 43 bytes Hello world! ~~~ All that ",  // use 48 tank
+                                "this is 48 bytes Hello world! ~~~ All that glist",  // use 64 tank
+                                "this is 64 bytes Hello world! ~~~ All that glisters is not gold.", // use 80 tank
+                                "this is 70 bytes Hello world! There are more things in heaven and eart", // use 80 tank
+                                "this is 90 bytes Hello world! There are more things in heaven and earth, Horatio, than are", // use 96 tank
+                                "this is 108 bytes Hello world!There are more things in heaven and earth, Horatio, than are dreamt of in your", //use 112 tank
+                                "this is 128 bytes Hello world! ~~~~~~ There are more things in heaven and earth, Horatio, than are dreamt of in your philosophy.", // use 128 tank , overflow
+                        };
+                        int[] ans_size = {
+                                16,16,32,48,48,64,80,80,96,112,0
+                        };
+                        int index = 0;
+                        for(String test : testarr){
+                                int random = new Random().nextInt((max - min) + 1) + min;
+                                byte[] tmp = CodeUtils.encodeAES(
+                                        key,
+                                        CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                                        CodeUtils.getCommandPackage(
+                                                CodeUtils.BLE_Connect,
+                                                (byte) test.length(),
+                                                test.getBytes(),
+                                                random
+                                        )
+                                );
+                                Log.i(Constants.DEBUG_TAG,"test message in byte:" + CodeUtils.bytesToHex(tmp));
+                                if(tmp.length != ans_size[index]){
+                                        Log.e(Constants.DEBUG_TAG,"test message size fail , exp " + ans_size[index] + " but got " + tmp.length);
+                                }
+                                index++;
+                        }
+                        Log.i(Constants.DEBUG_TAG,"test message size pass");
+                } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                }
         }
 }
