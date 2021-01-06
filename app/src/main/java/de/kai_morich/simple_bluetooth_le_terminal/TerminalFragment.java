@@ -32,19 +32,19 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+
+import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionLockStatus;
 
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
 
@@ -71,6 +71,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private int current_command_select_position = 0;
     private byte current_command = CodeUtils.Command_Initialization_Code;
     private String command_step = CodeUtils.Command_Initialization;
+    private boolean wish_set_lock_state = true;
+    private int current_get_log_index = -1;
+    private int get_log_index = 0;
 //    private byte[] communication_AES_KEY;  // C1 and C1 aes key xor
 //    private String communication_token = "";
 
@@ -176,7 +179,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             leaders.add(leader);
         }
 
-
         View sendBtn = view.findViewById(R.id.send_btn);
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
         Button command_button= (Button)view.findViewById(R.id.Command);
@@ -184,28 +186,125 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             @Override
             public void onClick(View view) {
                 resetState();
+                byte[] data;
                 Log.i(Constants.DEBUG_TAG,"command prepare:" + leaders.get(current_command_select_position).get(NAME));
                 switch(current_command_select_position){
-                    case 0:  // e.g = leaders.get(0) command. //0xC0	連線亂數
+                    case Constants.CMD_0xC0:  // 連線亂數
                         commandC0();
                         break;
-                    case 1:  //0xC1	連線 Token
+                    case Constants.CMD_0xC1:  // 連線 Token
                         readToken();
                         SunionToken token  = service.getSecretLockToken();
                         if (token.getToken().length != 0){
                             SpannableStringBuilder spn = new SpannableStringBuilder("Using Token"+'\n');
                             spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                             receiveText.append(spn);
-                            commandC1(token);
+//                            commandC1(token);
+                            commandWithStep(
+                                    CodeUtils.Connect,
+                                    CodeUtils.Connect_UsingTokenConnect,
+                                    (byte)token.getToken().length,
+                                    token.getToken()
+                            );
                         }else{
                             SpannableStringBuilder spn = new SpannableStringBuilder("Using Once Token"+'\n');
                             spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                             receiveText.append(spn);
-                            commandC1UsingOnce();
+//                            commandC1UsingOnce();
+                            commandWithStep(
+                                    CodeUtils.Connect,
+                                    CodeUtils.Connect_UsingOnceTokenConnect,
+                                    (byte)service.lock_token.length(),
+                                    service.lock_token.getBytes()
+                            );
                         }
                         break;
-                    case 2:  //0xCC	左右判定
-                        commandCC();
+                    case Constants.CMD_0xCC:
+                        commandNormal(CodeUtils.DirectionCheck,(byte) 0x00,new byte[]{});
+                        break;
+                    case Constants.CMD_0xCE:
+                        commandNormal(CodeUtils.FactoryReset,(byte) 0x00,new byte[]{});
+                        break;
+                    case Constants.CMD_0xD0:
+                        commandNormal(CodeUtils.InquireLockName,(byte) 0x00,new byte[]{});
+                        break;
+                    case Constants.CMD_0xD1:
+                        int random_name = new Random().nextInt((999 - 100) + 1) + 100;
+                        String test_name = "Name-" + random_name;
+                        data = test_name.getBytes();
+                        commandNormal(CodeUtils.SetLockName,(byte) data.length,data);
+                        break;
+                    case Constants.CMD_0xD2:
+                        commandNormal(CodeUtils.InquireLockTime,(byte) 0x00,new byte[]{});
+                        break;
+                    case Constants.CMD_0xD3:
+                        Long tsLong = System.currentTimeMillis()/1000;
+                        data = CodeUtils.intToLittleEndian(tsLong);
+                        commandNormal(CodeUtils.SetLockTime,(byte) data.length,data);
+                        break;
+                    case Constants.CMD_0xD4:
+                        commandNormal(CodeUtils.InquireLockConfig,(byte) 0x00,new byte[]{});
+                        break;
+                    case Constants.CMD_0xD5:
+                        data = new byte[5];
+//                        1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知 Other 忽視(建議)
+//                        2	1	聲音 1:開啟, 0:關閉
+//                        3	1	假期模式 1:開啟, 0:關閉
+//                        4	1	自動上鎖 1:開啟, 0:關閉
+//                        5	1	自動上鎖時間 10~99
+                        int random_autolock_delay = new Random().nextInt((99 - 10) + 1) + 10;
+                        data[0] = SunionLockStatus.LOCK_STATUS_UNKNOWN;
+                        data[1] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
+                        data[2] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
+                        data[3] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
+                        data[4] = (byte) random_autolock_delay;
+                        commandNormal(CodeUtils.SetLockConfig,(byte) data.length,data);
+                        break;
+                    case Constants.CMD_0xD6:
+                        commandNormal(CodeUtils.InquireLockState,(byte) 0x00,new byte[]{});
+                        break;
+                    case Constants.CMD_0xD7:
+                        data = new byte[1];
+                        data[0] = wish_set_lock_state ? (byte) 0x01 : (byte) 0x00 ;
+                        commandNormal(CodeUtils.SetLockState,(byte) data.length,data);
+                        wish_set_lock_state = !wish_set_lock_state;
+                        break;
+                    case Constants.CMD_0xE0:
+                        commandNormal(CodeUtils.InquireLogCount,(byte) 0x00,new byte[]{});
+                        break;
+                    case Constants.CMD_0xE1:
+                        if (current_get_log_index < 0) {
+                            popNotice("you need to run 0xE0 InquireLogCount to get total log size");
+                        }
+                        data = new byte[1];
+                        data[0] = (byte) getLogIndex();
+                        commandNormal(CodeUtils.SetLockState,(byte) data.length,data);
+                        break;
+                    case Constants.CMD_0xE2:
+                        break;
+//                    case Constants.CMD_0xE3:
+//                        break;
+                    case Constants.CMD_0xE4:
+                        break;
+                    case Constants.CMD_0xE5:
+                        break;
+                    case Constants.CMD_0xE6:
+                        break;
+                    case Constants.CMD_0xE7:
+                        break;
+                    case Constants.CMD_0xE8:
+                        break;
+//                    case Constants.CMD_0xE9:
+//                        break;
+                    case Constants.CMD_0xEA:
+                        break;
+                    case Constants.CMD_0xEB:
+                        break;
+                    case Constants.CMD_0xEC:
+                        break;
+                    case Constants.CMD_0xED:
+                        break;
+                    case Constants.CMD_0xEE:
                         break;
                     default:
                         sendText.setText("");
@@ -297,25 +396,61 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
-    private void commandCC(){
+    private void commandWithStep(byte cmd , String step , byte size , byte[] data){
         SecretKey key = service.getConnectionAESKey();
         if ( key != null ){
             byte[] command = CodeUtils.encodeAES(
                     key,
                     CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
                     CodeUtils.getCommandPackage(
-                            CodeUtils.DirectionCheck,
-                            (byte) 0x00,
-                            new byte[]{},
+                            cmd,
+                            size,
+                            data,
                             service.incrCommandIV()
                     )
             );
-            current_command = CodeUtils.DirectionCheck;
+            current_command = cmd;
+            command_step = step;
             sendText.setText(CodeUtils.bytesToHex(command));
         } else {
             errorToast("Missing Connection AES Key");
             sendText.setText("");
         }
+    }
+
+    private void commandNormal(byte cmd , byte size , byte[] data){
+        SecretKey key = service.getConnectionAESKey();
+        if ( key != null ){
+            byte[] command = CodeUtils.encodeAES(
+                    key,
+                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                    CodeUtils.getCommandPackage(
+                            cmd,
+                            size,
+                            data,
+                            service.incrCommandIV()
+                    )
+            );
+            current_command = cmd;
+            sendText.setText(CodeUtils.bytesToHex(command));
+        } else {
+            errorToast("Missing Connection AES Key");
+            sendText.setText("");
+        }
+    }
+
+    private int getLogIndex(){
+        if ( get_log_index >= current_get_log_index ) {
+            get_log_index = 0;
+            return get_log_index;
+        } else {
+            return get_log_index++;
+        }
+    }
+
+    private void popNotice(String message){
+        Toast toast = Toast.makeText(this.getContext(), message , Toast.LENGTH_SHORT);
+        toast.show();
     }
 
     private AdapterView.OnItemSelectedListener spnOnItemSelected = new AdapterView.OnItemSelectedListener()
@@ -423,9 +558,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 msg = str;
                 data = (str + newline).getBytes();
             }
-            SpannableStringBuilder spn = new SpannableStringBuilder(msg+'\n');
-            spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            receiveText.append(spn);
+            if ( current_command != CodeUtils.Command_Initialization_Code && (data.length % 16 == 0) && data.length > 0 ) {
+                SpannableStringBuilder spn = new SpannableStringBuilder(CodeUtils.bytesToHex(CodeUtils.decodeAES(service.getConnectionAESKey(),CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data))+'\n');
+                spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                receiveText.append(spn);
+            } else {
+                SpannableStringBuilder spn = new SpannableStringBuilder(msg+'\n');
+                spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                receiveText.append(spn);
+            }
             service.write(data,current_command,command_step);
         } catch (Exception e) {
             onSerialIoError(e);
@@ -448,6 +589,29 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     SpannableStringBuilder spn = new SpannableStringBuilder("receive token : " + token +'\n');
                     spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                     receiveText.append(spn);
+                } else if (s.indexOf(Constants.EXCHANGE_DATA_PREFIX) == 0) {
+                    int prefix = Constants.EXCHANGE_MESSAGE_PREFIX.length();
+                    String message = s.substring(prefix, s.length() - prefix);
+                    if (message.indexOf(Constants.EXCHANGE_DATA_0xE0_PREFIX) == 0) {
+                        int tag_prefix = Constants.EXCHANGE_DATA_0xE0_PREFIX.length();
+                        String base64 = message.substring(tag_prefix, message.length() - tag_prefix);
+                        try {
+                            JSONObject json = new JSONObject(CodeUtils.decodeBase64(base64));
+                            // try CodeUtils.InquireLogCount
+                                int InquireLogCount = json.getInt(Constants.CMD_NAME_0xE0);
+                                if (InquireLogCount >= 0) {
+                                    current_get_log_index = InquireLogCount;
+                                }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    } else if (message.indexOf(Constants.EXCHANGE_DATA_0xE4_PREFIX) == 0) {
+                        int tag_prefix = Constants.EXCHANGE_DATA_0xE4_PREFIX.length();
+                    } else if (message.indexOf(Constants.EXCHANGE_DATA_0xEA_PREFIX) == 0) {
+                        int tag_prefix = Constants.EXCHANGE_DATA_0xEA_PREFIX.length();
+                    } else {
+                        // skip
+                    }
                 } else {
                     SpannableStringBuilder spn = new SpannableStringBuilder(s+'\n');
                     spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -480,44 +644,26 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void saveToken(byte[] token){
-        try (FileOutputStream fos = this.getContext().openFileOutput(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE)) {
-            fos.write(token);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).edit().putString(CodeUtils.ConnectionTokenFileName,CodeUtils.bytesToHex(token)).commit();
     }
 
-    private String readToken(){
-        String token = "";
-        String default_token = service.lock_token;
-        try (FileInputStream fis = this.getContext().openFileInput(CodeUtils.ConnectionTokenFileName)) {
-            BufferedReader br =new BufferedReader(new InputStreamReader(fis));
-            String strLine;
-            while ((strLine = br.readLine()) != null) {
-                token = token + strLine;
+    private byte[] readToken(){
+        String s = this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).getString(CodeUtils.ConnectionTokenFileName, "");
+        if ( CodeUtils.isHexString(s) ){
+            byte[] token = CodeUtils.hexStringToBytes(s);
+            if (token.length > 0){
+                service.setSecretLockToken(new SunionToken(1,token));
+                return token;
+            } else {
+                return service.lock_token.getBytes();
             }
-        } catch (FileNotFoundException e) {
-            Toast toast = Toast.makeText(this.getContext(), "token FileNotFoundException" , Toast.LENGTH_SHORT);
-            toast.show();
-            e.printStackTrace();
-        } catch (IOException e) {
-            Toast toast = Toast.makeText(this.getContext(), "token IOException" , Toast.LENGTH_SHORT);
-            toast.show();
-            e.printStackTrace();
-        }
-
-        if (token.length() > 0){
-            service.setSecretLockToken(new SunionToken(1,token.getBytes()));
-            return token;
-        }else{
-            return default_token;
+        } else {
+            return service.lock_token.getBytes();
         }
     }
 
     private void deleteToken(){
-        this.getContext().deleteFile(CodeUtils.ConnectionTokenFileName);
+        this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).edit().putString(CodeUtils.ConnectionTokenFileName,"").commit();
         service.setSecretLockToken(new SunionToken(0,new byte[]{}));
     }
 
