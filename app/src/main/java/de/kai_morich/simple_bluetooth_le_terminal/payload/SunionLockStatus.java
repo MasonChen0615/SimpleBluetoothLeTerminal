@@ -1,6 +1,6 @@
 package de.kai_morich.simple_bluetooth_le_terminal.payload;
 
-import java.nio.ByteBuffer;
+import de.kai_morich.simple_bluetooth_le_terminal.CodeUtils;
 
 public class SunionLockStatus {
     private byte lock_status;
@@ -51,7 +51,7 @@ public class SunionLockStatus {
         status.battery = data[6];
         status.low_battery = data[7];
         byte[] array= {data[8], data[9], data[10], data[11]};
-        status.timestamp = ByteBuffer.wrap(array).getInt();
+        status.timestamp = CodeUtils.littleEndianToInt(array);
         return status;
     }
 

@@ -1,7 +1,11 @@
 package de.kai_morich.simple_bluetooth_le_terminal;
 
+import android.util.Base64;
 import android.util.Log;
 
+import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -141,6 +145,33 @@ public class CodeUtils {
         */
         public static final byte DeletePinCode = (byte) 0xEE;
 
+        public static String encodeBase64(String data){
+                return Base64.encodeToString(data.getBytes(), Base64.DEFAULT);
+        }
+
+        public static String decodeBase64(String data){
+                // Receiving side
+                Base64.decode(data.getBytes(), Base64.DEFAULT);
+                try {
+                        String text = new String(Base64.decode(data.getBytes(), Base64.DEFAULT), "UTF-8");
+                        return text;
+                } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                        return "";
+                }
+        }
+
+        public static byte[] intToLittleEndian(long numero) {
+                ByteBuffer bb = ByteBuffer.allocate(4);
+                bb.order(ByteOrder.LITTLE_ENDIAN);
+                bb.putInt((int) numero);
+                return bb.array();
+        }
+
+        public static int littleEndianToInt(byte[] data) {
+                return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
+        }
+
         public static SunionCommandPayload decodeCommandPackage(byte[] data){
 //                index	說明
 //                01	流水號 low byte   0
@@ -226,6 +257,43 @@ public class CodeUtils {
                         hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
                 }
                 return new String(hexChars);
+        }
+        public static byte[] hexStringToBytes(String message) {
+                int len = message.length() / 2;
+                char[] chars = message.toCharArray();
+
+                String[] hexStr = new String[len];
+
+                byte[] bytes = new byte[len];
+
+                for (int i = 0, j = 0; j < len; i += 2, j++) {
+                        hexStr[j] = "" + chars[i] + chars[i + 1];
+                        bytes[j] = (byte) Integer.parseInt(hexStr[j], 16);
+                }
+                return bytes;
+        }
+        public static Boolean isHexString(String message){
+                if (message.length() > 0) {
+                        if (message.length() % 2 != 0) {
+                                return false;
+                        }
+                        char[] message_char = message.toCharArray();
+                        for (char c : message_char) {
+                                Boolean found = false;
+                                for (char e : HEX_ARRAY) {
+                                        if ( c == e ) {
+                                                //check pass
+                                                found = true;
+                                        }
+                                }
+                                if (!found) {
+                                        return false;
+                                }
+                        }
+                        return true;
+                } else {
+                        return false;
+                }
         }
 
         /**
@@ -336,6 +404,24 @@ public class CodeUtils {
                                 index++;
                         }
                         Log.i(Constants.SELF_TEST,"test message size pass");
+                        String[] testarr2 = {
+                                "010203", //true
+                                " ", //false
+                                "010203-", //false
+                                "ABC", //false
+                        };
+                        Boolean[] ans_op = {
+                                true,false,false,false
+                        };
+                        index = 0;
+                        for(String test : testarr2){
+                                Boolean tmp  = isHexString(test);
+                                if(tmp != ans_op[index]){
+                                        Log.e(Constants.SELF_TEST,"test isHexString op fail , exp " + ans_size[index] + " but got " + tmp);
+                                }
+                                index++;
+                        }
+                        Log.i(Constants.SELF_TEST,"test isHexString pass");
                 } catch (NoSuchAlgorithmException e) {
                         e.printStackTrace();
                 }
