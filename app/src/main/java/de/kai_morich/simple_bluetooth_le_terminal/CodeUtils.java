@@ -14,7 +14,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
+
 
 /**
  * Created by Maya on 2020/12/16.
@@ -195,12 +195,12 @@ public class CodeUtils {
                 for(int i = 0 ; i < data.length ; i++) {
                         command[i+4] = data[i];
                 }
-                Log.i("AAA","command data size is  : " + command.length);
+                Log.i(Constants.DEBUG_TAG,"command data size is  : " + command.length);
                 int currten_len = command.length;
                 int tank_size = ( (currten_len / 16) + ( ( (currten_len % 16) > 0 ) ? 1 : 0 ) ) * 16;
 
                 if (tank_size >= 128 ){
-                        Log.e("AAA","command data size is  : " + command.length + " too big");
+                        Log.e(Constants.DEBUG_TAG,"command data size is  : " + command.length + " too big");
                         return new byte[0];
                 } else {
                         print = new byte[tank_size];
@@ -211,8 +211,8 @@ public class CodeUtils {
                         for( int j = i ; j < print.length ; j++){
                                 print[j] = (byte)0x3D; // = padding text
                         }
-                        Log.i("AAA","command package size " + print.length);
-                        Log.i("AAA","command in hex : " + CodeUtils.bytesToHex(print));
+                        Log.i(Constants.DEBUG_TAG,"command package size " + print.length);
+                        Log.i(Constants.DEBUG_TAG,"command in hex : " + CodeUtils.bytesToHex(print));
                         return print;
                 }
         }
@@ -329,13 +329,13 @@ public class CodeUtils {
                                                 random
                                         )
                                 );
-                                Log.i(Constants.DEBUG_TAG,"test message in byte:" + CodeUtils.bytesToHex(tmp));
+                                Log.i(Constants.SELF_TEST,"test message in byte:" + CodeUtils.bytesToHex(tmp));
                                 if(tmp.length != ans_size[index]){
-                                        Log.e(Constants.DEBUG_TAG,"test message size fail , exp " + ans_size[index] + " but got " + tmp.length);
+                                        Log.e(Constants.SELF_TEST,"test message size fail , exp " + ans_size[index] + " but got " + tmp.length);
                                 }
                                 index++;
                         }
-                        Log.i(Constants.DEBUG_TAG,"test message size pass");
+                        Log.i(Constants.SELF_TEST,"test message size pass");
                 } catch (NoSuchAlgorithmException e) {
                         e.printStackTrace();
                 }
