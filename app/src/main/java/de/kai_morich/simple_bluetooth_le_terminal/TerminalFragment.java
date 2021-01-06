@@ -175,7 +175,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             leader.put(CREATION, creation[i]);
             leaders.add(leader);
         }
-        readToken();
+
 
         View sendBtn = view.findViewById(R.id.send_btn);
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
@@ -190,6 +190,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         commandC0();
                         break;
                     case 1:  //0xC1	連線 Token
+                        readToken();
                         SunionToken token  = service.getSecretLockToken();
                         if (token.getToken().length != 0){
                             SpannableStringBuilder spn = new SpannableStringBuilder("Using Token"+'\n');
@@ -517,6 +518,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     private void deleteToken(){
         this.getContext().deleteFile(CodeUtils.ConnectionTokenFileName);
+        service.setSecretLockToken(new SunionToken(0,new byte[]{}));
     }
 
     /*

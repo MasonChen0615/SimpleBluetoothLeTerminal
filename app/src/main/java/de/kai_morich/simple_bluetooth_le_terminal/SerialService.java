@@ -17,10 +17,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedList;
@@ -28,6 +25,8 @@ import java.util.Queue;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+
+import de.kai_morich.simple_bluetooth_le_terminal.payload.*;
 
 /**
  * create notification and queue serial data while activity is not in the foreground
@@ -551,8 +550,9 @@ public class SerialService extends Service implements SerialListener {
                             }
                         } else if (commandPackage.getCommand() == CodeUtils.InquireToken) {
                             byte[] payload = commandPackage.getData();
-                            setSecretLockToken(new SunionToken(1, payload));
-                            exchangeToken("AAA");
+                            SunionToken tmp = SunionToken.decodeTokenPayload(payload);
+                            setSecretLockToken(new SunionToken(1, tmp.getToken()));
+                            exchangeToken("Exchange");
                             resetCommandState();
                             Log.i(Constants.DEBUG_TAG, "release resetCommandState where receive InquireToken in Connect_UsingOnceTokenConnect at InquireToken");
                         } else {
@@ -565,8 +565,16 @@ public class SerialService extends Service implements SerialListener {
                 }
                 break;
             case CodeUtils.DirectionCheck:
-                if (commandPackage.getCommand() == CodeUtils.DirectionCheck) {
-
+                if (commandPackage.getCommand() == CodeUtils.InquireLockState) {
+                    SunionLockStatus status =  SunionLockStatus.decodeLockStatusPayload(commandPackage.getData());
+                    if (status.getDeadBolt() == SunionLockStatus.DEAD_BOLT_LOCK) {
+                        printMessage("Deadbolt state is lock");
+                    } else if (status.getDeadBolt() == SunionLockStatus.DEAD_BOLT_UNLOCK) {
+                        printMessage("Deadbolt state is unlock");
+                    } else {
+                        printMessage("Deadbolt state is unknown");
+                    }
+                    resetCommandState();
                 } else {
                     if (incrRetry() > CodeUtils.Retry){
                         resetCommandState();
@@ -575,8 +583,15 @@ public class SerialService extends Service implements SerialListener {
                 }
                 break;
             default:
-                if (commandPackage.getCommand() == CodeUtils.InquireLockState) {
-                    Log.i(Constants.DEBUG_TAG,"LockState in default");
+                if (commandPackage.getCommand() == CodeUtils.InquireLockState) {  // default action.
+                    SunionLockStatus status =  SunionLockStatus.decodeLockStatusPayload(commandPackage.getData());
+                    if (status.getDeadBolt() == SunionLockStatus.DEAD_BOLT_LOCK) {
+                        printMessage("state machine default : " + "Deadbolt state is lock");
+                    } else if (status.getDeadBolt() == SunionLockStatus.DEAD_BOLT_UNLOCK) {
+                        printMessage("state machine default : " + "Deadbolt state is unlock");
+                    } else {
+                        printMessage("state machine default : " + "Deadbolt state is unknown");
+                    }
                 }
                 listener.onSerialRead("wait command".getBytes());
                 // not to do.
