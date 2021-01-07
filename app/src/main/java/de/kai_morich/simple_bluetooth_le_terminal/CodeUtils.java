@@ -9,6 +9,7 @@ import java.nio.ByteOrder;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Random;
 
@@ -144,6 +145,15 @@ public class CodeUtils {
         * 刪除 PinCode
         */
         public static final byte DeletePinCode = (byte) 0xEE;
+        /**
+         * Require setting PinCode
+         */
+        public static final byte RequireSettingPinCode = (byte) 0xEF;
+
+        public static Date convertDate(int timestamp){
+                long my_timestamp = ((long)timestamp) * ((long)1000);
+                return new Date( my_timestamp );
+        }
 
         public static String encodeBase64(String data){
                 return Base64.encodeToString(data.getBytes(), Base64.DEFAULT);

@@ -18,6 +18,7 @@ public class SunionLockStatus {
     public static final byte LOCK_STATUS_RIGHT = (byte) 0xA0;
     public static final byte LOCK_STATUS_LEFT = (byte) 0xA1;
     public static final byte LOCK_STATUS_UNKNOWN = (byte) 0xA2;
+    public static final byte LOCK_STATUS_NOT_TO_DO = (byte) 0xA3;
     public static final byte DEAD_BOLT_LOCK = (byte) 0x01;
     public static final byte DEAD_BOLT_UNLOCK = (byte) 0x00;
 //    public static final byte DEAD_BOLT_UNKNOWN = any;

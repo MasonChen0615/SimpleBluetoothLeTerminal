@@ -72,8 +72,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private byte current_command = CodeUtils.Command_Initialization_Code;
     private String command_step = CodeUtils.Command_Initialization;
     private boolean wish_set_lock_state = true;
-    private int current_get_log_index = -1;
+//    private int current_get_log_index = -1;
     private int get_log_index = 0;
+    private int storage_token_index = 0;
 //    private byte[] communication_AES_KEY;  // C1 and C1 aes key xor
 //    private String communication_token = "";
 
@@ -185,6 +186,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         command_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                sendText.setText("");
                 resetState();
                 byte[] data;
                 Log.i(Constants.DEBUG_TAG,"command prepare:" + leaders.get(current_command_select_position).get(NAME));
@@ -247,17 +249,23 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         break;
                     case Constants.CMD_0xD5:
                         data = new byte[5];
-//                        1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知 Other 忽視(建議)
+//                        1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知 , Other 0xA3 忽視(建議)
 //                        2	1	聲音 1:開啟, 0:關閉
 //                        3	1	假期模式 1:開啟, 0:關閉
 //                        4	1	自動上鎖 1:開啟, 0:關閉
 //                        5	1	自動上鎖時間 10~99
                         int random_autolock_delay = new Random().nextInt((99 - 10) + 1) + 10;
-                        data[0] = SunionLockStatus.LOCK_STATUS_UNKNOWN;
+                        data[0] = SunionLockStatus.LOCK_STATUS_NOT_TO_DO;
                         data[1] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
                         data[2] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
                         data[3] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
                         data[4] = (byte) random_autolock_delay;
+                        String notice = "鎖體方向:忽視,";
+                        notice += " 聲音:" + CodeUtils.bytesToHex(new byte[]{data[1]});
+                        notice += " 假期模式:" + CodeUtils.bytesToHex(new byte[]{data[2]});
+                        notice += " 自動上鎖:" + CodeUtils.bytesToHex(new byte[]{data[3]});
+                        notice += " 自動上鎖時間:" + CodeUtils.bytesToHex(new byte[]{data[4]});
+                        popNotice(notice);
                         commandNormal(CodeUtils.SetLockConfig,(byte) data.length,data);
                         break;
                     case Constants.CMD_0xD6:
@@ -273,22 +281,48 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         commandNormal(CodeUtils.InquireLogCount,(byte) 0x00,new byte[]{});
                         break;
                     case Constants.CMD_0xE1:
-                        if (current_get_log_index < 0) {
+                        if (service.getLockLogCurrentNumber() < 0) {
                             popNotice("you need to run 0xE0 InquireLogCount to get total log size");
                         }
                         data = new byte[1];
                         data[0] = (byte) getLogIndex();
-                        commandNormal(CodeUtils.SetLockState,(byte) data.length,data);
+                        commandNormal(CodeUtils.InquireLog,(byte) data.length,data);
                         break;
                     case Constants.CMD_0xE2:
+                        if (service.getLockLogCurrentNumber() < 0) {
+                            popNotice("you need to run 0xE0 InquireLogCount to get total log size");
+                        }
+                        data = new byte[1];
+                        data[0] = (byte) getLogIndex();
+                        commandNormal(CodeUtils.DeleteLog,(byte) data.length,data);
                         break;
 //                    case Constants.CMD_0xE3:
 //                        break;
                     case Constants.CMD_0xE4:
+                        commandNormal(CodeUtils.InquireTokenArray,(byte) 0x00,new byte[]{});
                         break;
                     case Constants.CMD_0xE5:
+                        if (service.getLockStorageTokenISSet()) {
+                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                        }
+                        data = new byte[1];
+                        int run_storage_token_index = getStorageTokenIndex();
+                        data[0] = (byte) run_storage_token_index;
+                        commandWithStep(
+                                CodeUtils.InquireToken,
+                                run_storage_token_index + "",
+                                (byte)data.length,
+                                data
+                        );
                         break;
                     case Constants.CMD_0xE6:
+//                        if (service.getLockStorageTokenISSet()) {
+//                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+//                        }
+//                        data = new byte[1];
+//                        int run_storage_token_index = getStorageTokenIndex();
+//                        data[0] = (byte) run_storage_token_index;
+//                        commandNormal(CodeUtils.NewOnceToken,(byte) 0x00,new byte[]{});
                         break;
                     case Constants.CMD_0xE7:
                         break;
@@ -307,7 +341,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     case Constants.CMD_0xEE:
                         break;
                     default:
-                        sendText.setText("");
                         break;
                 }
 
@@ -349,50 +382,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             Log.i(Constants.DEBUG_TAG,"prepare message aes decode in byte:" + CodeUtils.bytesToHex(message));
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
-        }
-    }
-
-    private void commandC1(SunionToken token){
-        SecretKey key = service.getConnectionAESKey();
-        if ( key != null ){
-            byte[] command = CodeUtils.encodeAES(
-                    key,
-                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
-                    CodeUtils.getCommandPackage(
-                            CodeUtils.Connect,
-                            (byte) token.getToken().length,
-                            token.getToken(),
-                            service.incrCommandIV()
-                    )
-            );
-            current_command = CodeUtils.Connect;
-            command_step = CodeUtils.Connect_UsingTokenConnect;
-            sendText.setText(CodeUtils.bytesToHex(command));
-        } else {
-            errorToast("Missing Connection AES Key");
-            sendText.setText("");
-        }
-    }
-
-    private void commandC1UsingOnce(){
-        SecretKey key = service.getConnectionAESKey();
-        if ( key != null ){
-            byte[] command = CodeUtils.encodeAES(
-                    key,
-                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
-                    CodeUtils.getCommandPackage(
-                            CodeUtils.Connect,
-                            (byte) service.lock_token.length(),
-                            service.lock_token.getBytes(),
-                            service.incrCommandIV()
-                    )
-            );
-            current_command = CodeUtils.Connect;
-            command_step = CodeUtils.Connect_UsingOnceTokenConnect;
-            sendText.setText(CodeUtils.bytesToHex(command));
-        } else {
-            errorToast("Missing Connection AES Key");
-            sendText.setText("");
         }
     }
 
@@ -440,11 +429,20 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private int getLogIndex(){
-        if ( get_log_index >= current_get_log_index ) {
+        if ( get_log_index >= service.getLockLogCurrentNumber() ) {
             get_log_index = 0;
             return get_log_index;
         } else {
             return get_log_index++;
+        }
+    }
+
+    private int getStorageTokenIndex(){
+        if ( storage_token_index >= 10 ) {
+            storage_token_index = 0;
+            return storage_token_index;
+        } else {
+            return storage_token_index++;
         }
     }
 
@@ -590,28 +588,31 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                     receiveText.append(spn);
                 } else if (s.indexOf(Constants.EXCHANGE_DATA_PREFIX) == 0) {
-                    int prefix = Constants.EXCHANGE_MESSAGE_PREFIX.length();
-                    String message = s.substring(prefix, s.length() - prefix);
-                    if (message.indexOf(Constants.EXCHANGE_DATA_0xE0_PREFIX) == 0) {
-                        int tag_prefix = Constants.EXCHANGE_DATA_0xE0_PREFIX.length();
-                        String base64 = message.substring(tag_prefix, message.length() - tag_prefix);
-                        try {
-                            JSONObject json = new JSONObject(CodeUtils.decodeBase64(base64));
-                            // try CodeUtils.InquireLogCount
-                                int InquireLogCount = json.getInt(Constants.CMD_NAME_0xE0);
-                                if (InquireLogCount >= 0) {
-                                    current_get_log_index = InquireLogCount;
-                                }
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-                    } else if (message.indexOf(Constants.EXCHANGE_DATA_0xE4_PREFIX) == 0) {
-                        int tag_prefix = Constants.EXCHANGE_DATA_0xE4_PREFIX.length();
-                    } else if (message.indexOf(Constants.EXCHANGE_DATA_0xEA_PREFIX) == 0) {
-                        int tag_prefix = Constants.EXCHANGE_DATA_0xEA_PREFIX.length();
-                    } else {
-                        // skip
-                    }
+//                    int prefix = Constants.EXCHANGE_MESSAGE_PREFIX.length();
+//                    String message = s.substring(prefix, s.length() - prefix);
+//                    if (message.indexOf(Constants.EXCHANGE_DATA_0xE0_PREFIX) == 0) {
+//                        int tag_prefix = Constants.EXCHANGE_DATA_0xE0_PREFIX.length();
+//                        String base64 = message.substring(tag_prefix, message.length() - tag_prefix);
+//                        try {
+//                            JSONObject json = new JSONObject(CodeUtils.decodeBase64(base64));
+//                            // try CodeUtils.InquireLogCount
+//                                int InquireLogCount = json.getInt(Constants.CMD_NAME_0xE0);
+//                                if (InquireLogCount >= 0) {
+//                                    current_get_log_index = InquireLogCount;
+//                                }
+//                        } catch (JSONException e) {
+//                            e.printStackTrace();
+//                        }
+//                    } else if (message.indexOf(Constants.EXCHANGE_DATA_0xE4_PREFIX) == 0) {
+//                        int tag_prefix = Constants.EXCHANGE_DATA_0xE4_PREFIX.length();
+//                    } else if (message.indexOf(Constants.EXCHANGE_DATA_0xEA_PREFIX) == 0) {
+//                        int tag_prefix = Constants.EXCHANGE_DATA_0xEA_PREFIX.length();
+//                    } else {
+//                        // skip
+//                    }
+                } else if (s.indexOf(Constants.EXCHANGE_DATA_0xE0_PREFIX) == 0) {
+//                    int prefix = Constants.EXCHANGE_DATA_0xE0_PREFIX.length();
+                    // not need to do.
                 } else {
                     SpannableStringBuilder spn = new SpannableStringBuilder(s+'\n');
                     spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);

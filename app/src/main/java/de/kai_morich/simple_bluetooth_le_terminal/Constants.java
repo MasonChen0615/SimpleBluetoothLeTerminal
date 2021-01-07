@@ -18,6 +18,10 @@ class Constants {
     static final String EXCHANGE_DATA_0xE4_PREFIX = "@" + Constants.CMD_NAME_0xE4 + "@";
     static final String EXCHANGE_DATA_0xEA_PREFIX = "@" + Constants.CMD_NAME_0xEA + "@";
 
+    static final String EXCHANGE_TAG_0xE0_PREFIX = EXCHANGE_DATA_0xE0_PREFIX;
+    static final String EXCHANGE_TAG_0xE4_PREFIX = EXCHANGE_DATA_0xE4_PREFIX;
+    static final String EXCHANGE_TAG_0xEA_PREFIX = EXCHANGE_DATA_0xEA_PREFIX;
+
     // command list
     static final int CMD_0xC0 = 0 ; //	連線亂數
     static final int CMD_0xC1 = 1 ; //	連線 Token
