@@ -38,6 +38,7 @@
         <item>0xEC	新增 PinCode</item>
         <item>0xED	修改 PinCode</item>
         <item>0xEE	刪除 PinCode</item>
+        <item>0xEF	是否有管理者 PinCode</item>
     </string-array>
     <string-array name="command_values">
         <item>C0</item>
@@ -67,5 +68,6 @@
         <item>EC</item>
         <item>ED</item>
         <item>EE</item>
+        <item>EF</item>
     </string-array>
 </resources>

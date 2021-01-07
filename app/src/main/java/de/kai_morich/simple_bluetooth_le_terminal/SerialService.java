@@ -514,7 +514,7 @@ public class SerialService extends Service implements SerialListener {
     private Boolean checkCommandIncome(SunionCommandPayload commandPackage , byte target){
         if (commandPackage.getCommand() == target) {
             return true;
-        } else if (commandPackage.getCommand() == CodeUtils.RequireSettingPinCode) {
+        } else if (commandPackage.getCommand() == CodeUtils.HaveMangerPinCode) {
             resetCommandState();
             return false;
         } else {
@@ -889,7 +889,6 @@ public class SerialService extends Service implements SerialListener {
 //                        2	1	是否是永久 Token 1:永久, 0:一次性
 //                        3 ~10	8	Token
 //                        11 ~	(最多 20 Byte)	Name
-                        printMessage(Constants.CMD_NAME_0xE5 + " status report start");
                         Boolean enable = (payload[0] == ((byte) 0x01)) ? true : false;
                         Boolean once_use = (payload[1] == ((byte) 0x00)) ? true : false;
                         byte[] token = new byte[]{payload[2],payload[3],payload[4],payload[5],payload[6],payload[7],payload[8],payload[9]};
@@ -908,6 +907,11 @@ public class SerialService extends Service implements SerialListener {
                                     )
                             );
                         }
+                        printMessage(Constants.CMD_NAME_0xE5 + " status report start");
+                        printMessage( "enable:" + ( enable ? "true" : "false" ) );
+                        printMessage( "once_use:" + ( once_use ? "true" : "false" ));
+                        printMessage( "token:" + CodeUtils.bytesToHex(token));
+                        printMessage( "name:" + CodeUtils.bytesToHex(name));
                         printMessage(Constants.CMD_NAME_0xE5 + " status report end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xE5 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
@@ -916,11 +920,91 @@ public class SerialService extends Service implements SerialListener {
                 }
                 break;
             case CodeUtils.NewOnceToken:
-
+                if (checkCommandIncome(commandPackage,CodeUtils.NewOnceToken)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 10) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xE6 + " allow");
+                            int i2 = payload[1] & 0xFF;
+                            byte[] token = new byte[]{payload[2],payload[3],payload[4],payload[5],payload[6],payload[7],payload[8],payload[9]};
+                            if (i2 >= 0 && i2 < 10) {
+                                setLockStorageToken(
+                                        i2,
+                                        new SunionTokenStatus(
+                                                true,
+                                                true,
+                                                token,
+                                                getCurrentCommandStep().getBytes()
+                                        )
+                                );
+                                setLockStorageTokenISSet(false);
+                            }
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xE6 + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xE6 + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xE6 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.ModifyToken:
+                if (checkCommandIncome(commandPackage,CodeUtils.ModifyToken)){
+                    byte[] payload = commandPackage.getData();
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    if (payload.length >= 10) {
+//                        1	1	是否可用 1:可用, 0:不可用
+//                        2	1	是否是永久 Token 1:永久, 0:一次性
+//                        3 ~10	8	Token
+//                        11 ~	(最多 20 Byte)	Name
+                        Boolean enable = (payload[0] == ((byte) 0x01)) ? true : false;
+                        Boolean once_use = (payload[1] == ((byte) 0x00)) ? true : false;
+                        byte[] token = new byte[]{payload[2],payload[3],payload[4],payload[5],payload[6],payload[7],payload[8],payload[9]};
+                        byte[] name = new byte[payload.length - 10];
+                        for(int i = 10 ; i < payload.length ; i++ ){
+                            name[i-10] = payload[i];
+                        }
+                        if (index >= 0 && index < 10){
+                            setLockStorageToken(
+                                    index,
+                                    new SunionTokenStatus(
+                                            enable,
+                                            once_use,
+                                            token,
+                                            name
+                                    )
+                            );
+                        }
+                        printMessage(Constants.CMD_NAME_0xE7 + " status report start");
+                        printMessage( "enable:" + ( enable ? "true" : "false" ) );
+                        printMessage( "once_use:" + ( once_use ? "true" : "false" ));
+                        printMessage( "token:" + CodeUtils.bytesToHex(token));
+                        printMessage( "name:" + CodeUtils.bytesToHex(name));
+                        printMessage(Constants.CMD_NAME_0xE7 + " status report end");
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xE7 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.DeleteToken:
+                if (checkCommandIncome(commandPackage,CodeUtils.DeleteToken)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xE8 + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xE8 + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xE8 + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xE8 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.InquirePinCodeArray:
                 break;
@@ -931,6 +1015,8 @@ public class SerialService extends Service implements SerialListener {
             case CodeUtils.ModifyPinCode:
                 break;
             case CodeUtils.DeletePinCode:
+                break;
+            case CodeUtils.HaveMangerPinCode:
                 break;
             default:
                 if (commandPackage.getCommand() == CodeUtils.InquireLockState) {  // default action.

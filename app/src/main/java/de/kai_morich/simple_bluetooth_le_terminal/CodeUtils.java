@@ -148,7 +148,7 @@ public class CodeUtils {
         /**
          * Require setting PinCode
          */
-        public static final byte RequireSettingPinCode = (byte) 0xEF;
+        public static final byte HaveMangerPinCode = (byte) 0xEF;
 
         public static Date convertDate(int timestamp){
                 long my_timestamp = ((long)timestamp) * ((long)1000);

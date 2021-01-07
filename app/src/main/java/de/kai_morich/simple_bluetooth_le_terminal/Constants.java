@@ -24,32 +24,59 @@ class Constants {
 
     // command list
     static final int CMD_0xC0 = 0 ; //	連線亂數
-    static final int CMD_0xC1 = 1 ; //	連線 Token
-    static final int CMD_0xCC = 2 ; //	左右判定
-    static final int CMD_0xCE = 3 ; //	回復原廠設定
-    static final int CMD_0xD0 = 4 ; //	查詢鎖體名稱
-    static final int CMD_0xD1 = 5 ; //	設定鎖體名稱
-    static final int CMD_0xD2 = 6 ; //	查詢鎖體時間
-    static final int CMD_0xD3 = 7 ; //	設定鎖體時間
-    static final int CMD_0xD4 = 8 ; //	查詢鎖體設定檔
-    static final int CMD_0xD5 = 9 ; //	設定鎖體設定檔
-    static final int CMD_0xD6 = 10 ; //	查詢鎖體狀態
-    static final int CMD_0xD7 = 11 ; //	設定鎖體狀態
-    static final int CMD_0xE0 = 12 ; //	查詢 Log 數量
-    static final int CMD_0xE1 = 13 ; //	查詢 Log
-    static final int CMD_0xE2 = 14 ; //	刪除 Log
-    static final int CMD_0xE3 = 15 ; //	保留未使用
-    static final int CMD_0xE4 = 16 ; //	查詢 Token Array
-    static final int CMD_0xE5 = 17 ; //	查詢 Token
-    static final int CMD_0xE6 = 18 ; //	新增一次性 Token
-    static final int CMD_0xE7 = 19 ; //	修改 Token
-    static final int CMD_0xE8 = 20 ; //	刪除 Token
-    static final int CMD_0xE9 = 21 ; //	保留未使用
-    static final int CMD_0xEA = 22 ; //	查詢 PinCode Array
-    static final int CMD_0xEB = 23 ; //	查詢 PinCode
-    static final int CMD_0xEC = 24 ; //	新增 PinCode
-    static final int CMD_0xED = 25 ; //	修改 PinCode
-    static final int CMD_0xEE = 26 ; //	刪除 PinCode
+    static final int CMD_0xC1 = CMD_0xC0 + 1 ; //	連線 Token
+    static final int CMD_0xCC = CMD_0xC1 + 1 ; //	左右判定
+    static final int CMD_0xCE = CMD_0xCC + 1 ; //	回復原廠設定
+    static final int CMD_0xD0 = CMD_0xCE + 1 ; //	查詢鎖體名稱
+    static final int CMD_0xD1 = CMD_0xD0 + 1 ; //	設定鎖體名稱
+    static final int CMD_0xD2 = CMD_0xD1 + 1 ; //	查詢鎖體時間
+    static final int CMD_0xD3 = CMD_0xD2 + 1 ; //	設定鎖體時間
+    static final int CMD_0xD4 = CMD_0xD3 + 1 ; //	查詢鎖體設定檔
+    static final int CMD_0xD5 = CMD_0xD4 + 1 ; //	設定鎖體設定檔
+    static final int CMD_0xD6 = CMD_0xD5 + 1 ; //	查詢鎖體狀態
+    static final int CMD_0xD7 = CMD_0xD6 + 1 ; //	設定鎖體狀態
+    static final int CMD_0xE0 = CMD_0xD7 + 1 ; //	查詢 Log 數量
+    static final int CMD_0xE1 = CMD_0xE0 + 1 ; //	查詢 Log
+    static final int CMD_0xE2 = CMD_0xE1 + 1 ; //	刪除 Log
+    static final int CMD_0xE3 = CMD_0xE2 + 1 ; //	保留未使用
+    static final int CMD_0xE4 = CMD_0xE3 + 1 ; //	查詢 Token Array
+    static final int CMD_0xE5 = CMD_0xE4 + 1 ; //	查詢 Token
+    static final int CMD_0xE6 = CMD_0xE5 + 1 ; //	新增一次性 Token
+    static final int CMD_0xE7 = CMD_0xE6 + 1 ; //	修改 Token
+    static final int CMD_0xE8 = CMD_0xE7 + 1 ; //	刪除 Token
+    static final int CMD_0xE9 = CMD_0xE8 + 1 ; //	保留未使用
+    static final int CMD_0xEA = CMD_0xE9 + 1 ; //	查詢 PinCode Array
+    static final int CMD_0xEB = CMD_0xEA + 1 ; //	查詢 PinCode
+    static final int CMD_0xEC = CMD_0xEB + 1 ; //	新增 PinCode
+    static final int CMD_0xED = CMD_0xEC + 1 ; //	修改 PinCode
+    static final int CMD_0xEE = CMD_0xED + 1 ; //	刪除 PinCode
+    static final int CMD_0xEF = CMD_0xEE + 1 ; //	刪除 PinCode
+//    static final int CMD_0xCC = 2 ; //	左右判定
+//    static final int CMD_0xCE = 3 ; //	回復原廠設定
+//    static final int CMD_0xD0 = 4 ; //	查詢鎖體名稱
+//    static final int CMD_0xD1 = 5 ; //	設定鎖體名稱
+//    static final int CMD_0xD2 = 6 ; //	查詢鎖體時間
+//    static final int CMD_0xD3 = 7 ; //	設定鎖體時間
+//    static final int CMD_0xD4 = 8 ; //	查詢鎖體設定檔
+//    static final int CMD_0xD5 = 9 ; //	設定鎖體設定檔
+//    static final int CMD_0xD6 = 10 ; //	查詢鎖體狀態
+//    static final int CMD_0xD7 = 11 ; //	設定鎖體狀態
+//    static final int CMD_0xE0 = 12 ; //	查詢 Log 數量
+//    static final int CMD_0xE1 = 13 ; //	查詢 Log
+//    static final int CMD_0xE2 = 14 ; //	刪除 Log
+//    static final int CMD_0xE3 = 15 ; //	保留未使用
+//    static final int CMD_0xE4 = 16 ; //	查詢 Token Array
+//    static final int CMD_0xE5 = 17 ; //	查詢 Token
+//    static final int CMD_0xE6 = 18 ; //	新增一次性 Token
+//    static final int CMD_0xE7 = 19 ; //	修改 Token
+//    static final int CMD_0xE8 = 20 ; //	刪除 Token
+//    static final int CMD_0xE9 = 21 ; //	保留未使用
+//    static final int CMD_0xEA = 22 ; //	查詢 PinCode Array
+//    static final int CMD_0xEB = 23 ; //	查詢 PinCode
+//    static final int CMD_0xEC = 24 ; //	新增 PinCode
+//    static final int CMD_0xED = 25 ; //	修改 PinCode
+//    static final int CMD_0xEE = 26 ; //	刪除 PinCode
+//    static final int CMD_0xEF = 26 ; //	刪除 PinCode
 
     static final int CMD_0xD8 = 0 ; // ~ 0xDF	保留未使用
 
@@ -80,6 +107,7 @@ class Constants {
     static final String CMD_NAME_0xEC = "NewPinCode";
     static final String CMD_NAME_0xED = "ModifyPinCode";
     static final String CMD_NAME_0xEE = "DeletePinCode";
+    static final String CMD_NAME_0xEF = "HaveMangerPinCode";
 
     private Constants() {}
 }

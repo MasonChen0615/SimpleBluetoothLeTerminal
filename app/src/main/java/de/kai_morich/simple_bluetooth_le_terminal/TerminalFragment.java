@@ -188,7 +188,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             public void onClick(View view) {
                 sendText.setText("");
                 resetState();
+                byte[] tmp;
                 byte[] data;
+                int random_name;
+                String test_name;
                 Log.i(Constants.DEBUG_TAG,"command prepare:" + leaders.get(current_command_select_position).get(NAME));
                 switch(current_command_select_position){
                     case Constants.CMD_0xC0:  // 連線亂數
@@ -231,8 +234,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         commandNormal(CodeUtils.InquireLockName,(byte) 0x00,new byte[]{});
                         break;
                     case Constants.CMD_0xD1:
-                        int random_name = new Random().nextInt((999 - 100) + 1) + 100;
-                        String test_name = "Name-" + random_name;
+                        random_name = new Random().nextInt((999 - 100) + 1) + 100;
+                        test_name = "Name-" + random_name;
                         data = test_name.getBytes();
                         commandNormal(CodeUtils.SetLockName,(byte) data.length,data);
                         break;
@@ -283,18 +286,20 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     case Constants.CMD_0xE1:
                         if (service.getLockLogCurrentNumber() < 0) {
                             popNotice("you need to run 0xE0 InquireLogCount to get total log size");
+                        } else {
+                            data = new byte[1];
+                            data[0] = (byte) getLogIndex();
+                            commandNormal(CodeUtils.InquireLog,(byte) data.length,data);
                         }
-                        data = new byte[1];
-                        data[0] = (byte) getLogIndex();
-                        commandNormal(CodeUtils.InquireLog,(byte) data.length,data);
                         break;
                     case Constants.CMD_0xE2:
                         if (service.getLockLogCurrentNumber() < 0) {
                             popNotice("you need to run 0xE0 InquireLogCount to get total log size");
+                        } else {
+                            data = new byte[1];
+                            data[0] = (byte) getLogIndex();
+                            commandNormal(CodeUtils.DeleteLog,(byte) data.length,data);
                         }
-                        data = new byte[1];
-                        data[0] = (byte) getLogIndex();
-                        commandNormal(CodeUtils.DeleteLog,(byte) data.length,data);
                         break;
 //                    case Constants.CMD_0xE3:
 //                        break;
@@ -302,31 +307,64 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         commandNormal(CodeUtils.InquireTokenArray,(byte) 0x00,new byte[]{});
                         break;
                     case Constants.CMD_0xE5:
-                        if (service.getLockStorageTokenISSet()) {
+                        if (!service.getLockStorageTokenISSet()) {
                             popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                        } else {
+                            data = new byte[1];
+                            int run_storage_token_index = getStorageTokenIndex();
+                            data[0] = (byte) run_storage_token_index;
+                            commandWithStep(
+                                    CodeUtils.InquireToken,
+                                    run_storage_token_index + "",
+                                    (byte)data.length,
+                                    data
+                            );
                         }
-                        data = new byte[1];
-                        int run_storage_token_index = getStorageTokenIndex();
-                        data[0] = (byte) run_storage_token_index;
-                        commandWithStep(
-                                CodeUtils.InquireToken,
-                                run_storage_token_index + "",
-                                (byte)data.length,
-                                data
-                        );
                         break;
                     case Constants.CMD_0xE6:
-//                        if (service.getLockStorageTokenISSet()) {
-//                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
-//                        }
-//                        data = new byte[1];
-//                        int run_storage_token_index = getStorageTokenIndex();
-//                        data[0] = (byte) run_storage_token_index;
-//                        commandNormal(CodeUtils.NewOnceToken,(byte) 0x00,new byte[]{});
+                        if (!service.getLockStorageTokenISSet()) {
+                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                        } else {
+                            random_name = new Random().nextInt((999 - 100) + 1) + 100;
+                            test_name = "New Once Token-" + random_name ;
+                            commandWithStep(
+                                    CodeUtils.NewOnceToken,
+                                    test_name,
+                                    (byte)test_name.length(),
+                                    test_name.getBytes()
+                            );
+                        }
                         break;
                     case Constants.CMD_0xE7:
+                        if (!service.getLockStorageTokenISSet()) {
+                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                        } else {
+                            random_name = new Random().nextInt((999 - 100) + 1) + 100;
+                            test_name = "Modify Token-" + random_name ;
+                            tmp = test_name.getBytes();
+                            data = new byte[test_name.length() + 1];
+                            data[0] = (byte) getStorageTokenIndex();
+                            popNotice("Modify Token index is " + ((int)(data[0] & (byte)0xff)));
+                            for ( int i = 1 ; i < data.length ; i++ ) {
+                                data[i] = tmp[i-1];
+                            }
+                            commandWithStep(
+                                    CodeUtils.ModifyToken,
+                                    ((int)(data[0] & (byte)0xff)) + "",
+                                    (byte)data.length,
+                                    data
+                            );
+                        }
                         break;
                     case Constants.CMD_0xE8:
+                        if (!service.getLockStorageTokenISSet()) {
+                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                        } else {
+                            data = new byte[1];
+                            data[0] = (byte) getStorageTokenIndex();
+                            popNotice("Delete Token index is " + ((int)(data[0] & (byte)0xff)));
+                            commandNormal(CodeUtils.DeleteToken,(byte) data.length,data);
+                        }
                         break;
 //                    case Constants.CMD_0xE9:
 //                        break;
@@ -339,6 +377,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     case Constants.CMD_0xED:
                         break;
                     case Constants.CMD_0xEE:
+                        break;
+                    case Constants.CMD_0xEF:
                         break;
                     default:
                         break;
