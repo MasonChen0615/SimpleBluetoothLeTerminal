@@ -45,6 +45,8 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionLockStatus;
+import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionPincodeSchedule;
+import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionPincodeStatus;
 
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
 
@@ -75,6 +77,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //    private int current_get_log_index = -1;
     private int get_log_index = 0;
     private int storage_token_index = 0;
+    private int storage_pincode_index = 0;
 //    private byte[] communication_AES_KEY;  // C1 and C1 aes key xor
 //    private String communication_token = "";
 
@@ -369,10 +372,62 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //                    case Constants.CMD_0xE9:
 //                        break;
                     case Constants.CMD_0xEA:
+                        commandNormal(CodeUtils.InquirePinCodeArray,(byte) 0x00,new byte[]{});
                         break;
                     case Constants.CMD_0xEB:
+                        if (!service.getLockStoragePincodeISSet()) {
+                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                        } else {
+                            data = new byte[1];
+                            data[0] = (byte) getStoragePincodeIndex();
+                            popNotice("PinCode index is " + ((int)(data[0] & (byte)0xff)));
+                            commandWithStep(
+                                    CodeUtils.InquirePinCode,
+                                    ((int)(data[0] & (byte)0xff)) + "",
+                                    (byte)data.length,
+                                    data
+                            );
+                        }
                         break;
                     case Constants.CMD_0xEC:
+                        if (!service.getLockStoragePincodeISSet()) {
+                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                        } else {
+                            // TODO: Add ui to control.
+//                            1	1	Index 0 ~ 200
+//                            2	1	Enable 1:可使用, 0:不可使用
+//                            3	1	PinCode長度 4 ~ 6
+//                            4 ~	len	PinCode
+//                            (5+len) ~ (16+len)	12	Schedule
+//                            (17+len) ~	(最多 20 Byte)	Name
+                            byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
+                            SunionPincodeStatus pincode = new SunionPincodeStatus(
+                                    true,
+                                    new byte[]{0x00,0x00,0x00,0x00},
+                                    new SunionPincodeSchedule(
+                                            SunionPincodeSchedule.WEEK_ROUTINE,
+                                            weekday,
+                                            SunionPincodeSchedule.WEEK_TIME_MIN,
+                                            SunionPincodeSchedule.WEEK_TIME_MAX,
+                                            SunionPincodeSchedule.SEEK_TIME_MIN,
+                                            SunionPincodeSchedule.SEEK_TIME_MAX
+                                    ),
+                                    "Hello!".getBytes()
+                            );
+                            tmp = pincode.encodePincodePayload();
+                            data = new byte[1+tmp.length];
+                            data[0] = (byte) getStoragePincodeIndex();
+                            popNotice("PinCode index is " + ((int)(data[0] & (byte)0xff)));
+                            for (int i = 1 ; i < data.length ; i++) {
+                                data[i] = tmp[i-1];
+                            }
+                            commandWithStep(
+                                    CodeUtils.NewPinCode,
+                                    ((int)(data[0] & (byte)0xff)) + "",
+                                    (byte)data.length,
+                                    data
+                            );
+                        }
                         break;
                     case Constants.CMD_0xED:
                         break;
@@ -483,6 +538,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             return storage_token_index;
         } else {
             return storage_token_index++;
+        }
+    }
+
+    private int getStoragePincodeIndex(){
+        if ( storage_pincode_index > 201 ) {
+            storage_pincode_index = 0;
+            return storage_pincode_index;
+        } else {
+            return storage_pincode_index++;
         }
     }
 

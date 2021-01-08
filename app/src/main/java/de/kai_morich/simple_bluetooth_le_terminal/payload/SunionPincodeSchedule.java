@@ -1,5 +1,7 @@
 package de.kai_morich.simple_bluetooth_le_terminal.payload;
 
+import de.kai_morich.simple_bluetooth_le_terminal.CodeUtils;
+
 /**
  *
  * |       index       | Length | Decription                                                                                                            |
@@ -22,13 +24,13 @@ public class SunionPincodeSchedule {
     public static final byte ALL_DAY_DENY = (byte) 0x4E;  // N
     public static final byte ONCE_USE = (byte) 0x4F;  // O
     public static final byte WEEK_ROUTINE = (byte) 0x57;  // W
-    public static final byte SEEK_TIME = (byte) 0x57;  // S
+    public static final byte SEEK_TIME = (byte) 0x53;  // S
 
     // only W can use, if not in W mode , WEEK DAY default value is WEEK_NOT_USE
 /**
  *  n | NaN | SUN | SAT | FRI | THUR | WED | TUE | MON |
  *  b |  7  |  6  |  5  |  4  |  3   |  2  |  1  |  0  |
- *  week MON WED FRI -> (use or Bitwise operators)   WEEK_MON | WEEK_WED | WEEK_FRI
+ *  week MON WED FRI -> (Use Bitwise operators)   WEEK_MON | WEEK_WED | WEEK_FRI
  */
     public static final byte WEEK_MON = (byte) 0x01;
     public static final byte WEEK_TUE = (byte) 0x02;
@@ -41,24 +43,78 @@ public class SunionPincodeSchedule {
     public static final byte[] WEEK_GROUP = new byte[]{WEEK_MON, WEEK_TUE, WEEK_WED, WEEK_THUR, WEEK_FRI, WEEK_SAT, WEEK_SUN};
     public static final String[] WEEK_NAME_GROUP = new String[]{"MON", "TUE", "WED", "THUR", "FRI", "SAT", "SUN"};
     // only W can use, if not in W mode , WEEK_TIME default value is WEEK_TIME_NOT_USE
+    public static final byte WEEK_TIME_START = (byte) 0x02;
+    public static final byte WEEK_TIME_END = (byte) 0x03;
     public static final byte WEEK_TIME_MIN = (byte) 0x00;
     public static final byte WEEK_TIME_MAX = (byte) 0x95;
     public static final byte WEEK_TIME_NOT_USE = (byte) 0xAA;
 
-//    public static final byte WEEK_TIME_MIN = (byte) 0x00;
-//    public static final byte WEEK_TIME_MAX = (byte) 0x95;
-//    public static final byte WEEK_TIME_NOT_USE = (byte) 0xAA;
+    public static final byte SEEK_TIME_START = (byte) 0x04;
+    public static final byte SEEK_TIME_END = (byte) 0x08;
+    public static final byte SEEK_TIME_MIN = (byte) 0x00;
+    public static final byte SEEK_TIME_MAX = (byte) 0x95;
+    public static final byte SEEK_TIME_NOT_USE = (byte) 0xAA;
 
-
+    private byte[] row_schedule;
     private byte schedule_type;
     private byte weekday;
+    private byte weektime_start;
+    private byte weektime_end;
+    private int seektime_start;
+    private int seektime_end;
 
-
-    public static SunionPincodeSchedule decodePincodeSchedulePayload(byte[] row_schedule){
-        for ( int i = 0 ; i < row_schedule.length ; i++ ){
-
+    public SunionPincodeSchedule(){}
+    public SunionPincodeSchedule(byte schedule_type, byte weekday, byte weektime_start, byte weektime_end, int seektime_start, int seektime_end){
+        this.schedule_type = schedule_type;
+        this.weekday = weekday;
+        this.weektime_start = weektime_start;
+        this.weektime_end = weektime_end;
+        this.seektime_start = seektime_start;
+        this.seektime_end = seektime_end;
+        encodePincodeSchedulePayload();
+    }
+    public byte[] encodePincodeSchedulePayload(){
+        this.row_schedule = new byte[12];
+        this.row_schedule[0] = this.schedule_type;
+        this.row_schedule[1] = this.weekday;
+        this.row_schedule[2] = this.weektime_start;
+        this.row_schedule[3] = this.weektime_end;
+        byte[] tmp;
+        tmp = CodeUtils.intToLittleEndian(this.seektime_start);
+        for(int i = 0 ; i < tmp.length ; i++ ){
+            this.row_schedule[4+i] = tmp[i];
         }
-        return new SunionPincodeSchedule();
+        tmp = CodeUtils.intToLittleEndian(this.seektime_end);
+        for(int i = 0 ; i < tmp.length ; i++ ){
+            this.row_schedule[8+i] = tmp[i];
+        }
+        return this.row_schedule;
+    }
+    public static SunionPincodeSchedule decodePincodeSchedulePayload(byte[] row_schedule){
+        SunionPincodeSchedule schedule = new SunionPincodeSchedule();
+        schedule.row_schedule = row_schedule;
+        byte[] row_seektime_start = new byte[4];
+        byte[] row_seektime_end = new byte[4];
+        for ( int i = 0 ; i < row_schedule.length ; i++ ){
+            if ( i == 0 ) {
+                schedule.schedule_type = row_schedule[i];
+            } else if ( i == 1 ) {
+                schedule.weekday = row_schedule[i];
+            } else if ( i == 2 ) {
+                schedule.setWeekTime(WEEK_TIME_START , row_schedule[i]);
+            } else if ( i == 3 ) {
+                schedule.setWeekTime(WEEK_TIME_END , row_schedule[i]);
+            } else if ( i > 3 &&  i < 8 ) {
+                row_seektime_start[i-4] = row_schedule[i];
+            } else if ( i >= 8 &&  i <= 11 ) {
+                row_seektime_end[i-8] = row_schedule[i];
+            } else {
+                //NaN
+            }
+        }
+        schedule.setSeekTime(SEEK_TIME_START,row_seektime_start);
+        schedule.setSeekTime(SEEK_TIME_END,row_seektime_end);
+        return schedule;
     }
     public byte getWeekDay(){
         return this.weekday;
@@ -93,4 +149,74 @@ public class SunionPincodeSchedule {
         }
         return "NaN";
     }
+    public void setSeekTime(byte ent , byte[] value){
+        switch(ent){
+            case SEEK_TIME_START:
+                seektime_start = CodeUtils.littleEndianToInt(value);
+                break;
+            case SEEK_TIME_END:
+                seektime_end = CodeUtils.littleEndianToInt(value);
+                break;
+        }
+    }
+    public int getSeekTime(byte ent){
+        switch(ent){
+            case SEEK_TIME_START:
+                return seektime_start;
+            case SEEK_TIME_END:
+                return seektime_end;
+            default:
+                return (byte)0x00;
+        }
+    }
+    public void setWeekTime(byte ent , byte value){
+        switch(ent){
+            case WEEK_TIME_START:
+                weektime_start = value;
+                break;
+            case WEEK_TIME_END:
+                weektime_end = value;
+                break;
+        }
+    }
+    public byte getWeekTime(byte ent){
+        switch(ent){
+            case SEEK_TIME_START:
+                return weektime_start;
+            case SEEK_TIME_END:
+                return weektime_end;
+            default:
+                return (byte)0x00;
+        }
+    }
+    @Override
+    public String toString(){
+        String message = "schedule type:" + CodeUtils.bytesToHex(new byte[]{this.schedule_type}) + "\n";
+        switch(this.schedule_type){
+            case ALL_DAY:
+                message += "time range : all day";
+                break;
+            case ALL_DAY_DENY:
+                message += "time range : all day deny";
+                break;
+            case ONCE_USE:
+                message += "time range : all day but once use";
+                break;
+            case WEEK_ROUTINE:
+                message += "time range : in week ";
+                for (byte day : this.decodeWeekDay(this.getWeekDay())){
+                    message += this.weekdayToString(day) + " ";
+                }
+                message += "\nfrom " + this.getWeekTime(WEEK_TIME_START) + "\nto " + this.getWeekTime(WEEK_TIME_END);
+                break;
+            case SEEK_TIME:
+                message += "time range : \nfrom " + CodeUtils.convertDate(this.getSeekTime(SEEK_TIME_START)).toString() + "\nto " + CodeUtils.convertDate(this.getSeekTime(SEEK_TIME_END)).toString();
+                break;
+            default:
+                message += "time range : unknown schedule type";
+                break;
+        }
+        return message;
+    }
 }
+

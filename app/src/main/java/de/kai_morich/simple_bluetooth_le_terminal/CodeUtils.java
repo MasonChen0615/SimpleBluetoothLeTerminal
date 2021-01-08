@@ -361,9 +361,10 @@ public class CodeUtils {
                 return new byte[]{};
         }
 
+        private static final byte DELIMITER = (byte) '\n';
         public static Boolean isBytesCanRead(byte[] data){
                 for(byte b : data){
-                        if ( b < (byte)0x20 || b > (byte)0x7E){
+                        if ( ( b < (byte)0x20 || b > (byte)0x7E ) && b != DELIMITER){
                                 return false;
                         }
                 }

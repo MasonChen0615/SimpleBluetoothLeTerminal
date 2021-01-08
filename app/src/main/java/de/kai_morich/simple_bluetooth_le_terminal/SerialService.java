@@ -53,6 +53,9 @@ public class SerialService extends Service implements SerialListener {
     private int lock_log_current_number = -1;
     private SunionTokenStatus[] storage_token = new SunionTokenStatus[10];
     private Boolean storage_token_isset = false;
+    private SunionPincodeStatus[] storage_pincode = new SunionPincodeStatus[250];
+    private Boolean storage_pincode_isset = false;
+    private Boolean storage_pincode_admin_require = false;
 
     class SerialBinder extends Binder {
         SerialService getService() { return SerialService.this; }
@@ -489,7 +492,41 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    public void setLockStoragePincode(int index , SunionPincodeStatus pincode){
+        synchronized (this) {
+            storage_pincode[index] = pincode;
+        }
+    }
 
+    public SunionPincodeStatus getLockStoragePincode(int index){
+        synchronized (this) {
+            return storage_pincode[index];
+        }
+    }
+
+    public void setLockStoragePincodeISSet(Boolean isset){
+        synchronized (this) {
+            storage_pincode_isset = isset;
+        }
+    }
+
+    public Boolean getLockStoragePincodeISSet(){
+        synchronized (this) {
+            return storage_pincode_isset;
+        }
+    }
+
+    public void setLockStoragePincodeAdminRequire(Boolean require){
+        synchronized (this) {
+            storage_pincode_admin_require = require;
+        }
+    }
+
+    public Boolean getLockStoragePincodeAdminRequire(){
+        synchronized (this) {
+            return storage_pincode_admin_require;
+        }
+    }
 
     public void printMessage(String message){
         String mymessage = Constants.EXCHANGE_MESSAGE_PREFIX + message + Constants.EXCHANGE_MESSAGE_PREFIX;
@@ -515,6 +552,17 @@ public class SerialService extends Service implements SerialListener {
         if (commandPackage.getCommand() == target) {
             return true;
         } else if (commandPackage.getCommand() == CodeUtils.HaveMangerPinCode) {
+            byte[] payload = commandPackage.getData();
+            if (payload.length == 1) {
+                if (payload[0] == (byte) 0x01) {
+                    setLockStoragePincodeAdminRequire(true);
+                    printMessage(Constants.CMD_NAME_0xEF + " need set admin pincode.");
+                } else {
+                    setLockStoragePincodeAdminRequire(false);
+                }
+            } else {
+                printMessage(Constants.CMD_NAME_0xEF + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+            }
             resetCommandState();
             return false;
         } else {
@@ -1007,10 +1055,67 @@ public class SerialService extends Service implements SerialListener {
                 }
                 break;
             case CodeUtils.InquirePinCodeArray:
+                if (checkCommandIncome(commandPackage,CodeUtils.InquirePinCodeArray)){
+                    byte[] payload = commandPackage.getData();
+                    byte[] check_enable = new byte[]{(byte)0x01, (byte)0x02, (byte)0x04, (byte)0x08, (byte)0x10, (byte)0x20, (byte)0x40, (byte)0x80};
+                    if (payload.length == 26) {
+                        printMessage(Constants.CMD_NAME_0xEA + " status report start");
+                        for(int i = 0 ; i < 26 ; i++){
+                            int count  = 0;
+                            for (byte check : check_enable) {
+                                if ( (payload[i] & check) == check ) {
+                                    int index = (i * 8 + count);
+                                    setLockStoragePincode(index,new SunionPincodeStatus(true));
+                                    printMessage(Constants.CMD_NAME_0xEA + " PinCode[" + index + "] is enable" );
+                                }
+                                count++;
+                            }
+                        }
+                        setLockStoragePincodeISSet(true);
+                        printMessage(Constants.CMD_NAME_0xEA + " status report end");
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xEA + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.InquirePinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.InquirePinCode)){
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length >= 14) {
+                        printMessage(Constants.CMD_NAME_0xEB + " status report start");
+                        try {
+                            SunionPincodeStatus pincode = SunionPincodeStatus.decodePincodePayload(payload);
+                            setLockStoragePincode(index,pincode);
+                            printMessage(Constants.CMD_NAME_0xEB + " PinCode[" + index + "] data:\n" + pincode.toString() );
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            printMessage(Constants.CMD_NAME_0xEB + " PinCode[" + index + "] data decode fail got message " + e.getMessage());
+                        }
+                        printMessage(Constants.CMD_NAME_0xEB + " status report end");
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xEB + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.NewPinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.NewPinCode)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xEC + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xEC + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xEC + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xEC + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.ModifyPinCode:
                 break;
