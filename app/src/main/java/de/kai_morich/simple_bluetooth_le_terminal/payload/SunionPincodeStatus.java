@@ -20,6 +20,17 @@ public class SunionPincodeStatus {
     private static final String DATA_TAG_ROW_SCHEDULE = "DATA_TAG_ROW_SCHEDULE";
     private static final String DATA_TAG_NAME = "DATA_TAG_NAME";
 
+    public static final byte PWD_0 = (byte) 0x00;
+    public static final byte PWD_1 = (byte) 0x01;
+    public static final byte PWD_2 = (byte) 0x02;
+    public static final byte PWD_3 = (byte) 0x03;
+    public static final byte PWD_4 = (byte) 0x04;
+    public static final byte PWD_5 = (byte) 0x05;
+    public static final byte PWD_6 = (byte) 0x06;
+    public static final byte PWD_7 = (byte) 0x07;
+    public static final byte PWD_8 = (byte) 0x08;
+    public static final byte PWD_9 = (byte) 0x09;
+
     public SunionPincodeStatus (){}
     public SunionPincodeStatus (Boolean enable){
         this.enable = enable;
@@ -58,64 +69,39 @@ public class SunionPincodeStatus {
          */
         SunionPincodeStatus pincode = new SunionPincodeStatus();
         int index = 0;
-        int data_index = 0;
         int pincode_len = 0;
-        byte[] tmp_name = new byte[20];
         pincode.row_schedule = new byte[12];
-        String step = DATA_TAG_ENABLE;
-        for( byte b : data ){
-            switch(step){
-                case DATA_TAG_ENABLE:
-                    pincode.enable = (b == (byte) 0x01) ? true : false;
-                    // next
-                    data_index = 0;
-                    step = DATA_TAG_PINCODE_LEN;
-                    break;
-                case DATA_TAG_PINCODE_LEN:
-                    pincode_len = b & 0xff;
-                    // next
-                    if (pincode_len > 0 && pincode_len <= 6){
-                        if ( (2 + pincode_len + 12) <= data.length) {
-                            pincode.pincode = new byte[pincode_len];
-                            data_index = 0;
-                            step = DATA_TAG_PINCODE;
-                        } else {
-                            throw new Exception("data.length not make sense with this pincode size, missing schedule data");
-                        }
-                    } else if (pincode_len > 6){
-                        throw new Exception("pincode size error");
-                    } else {
-                        //not have pincode
-                        step = DATA_TAG_ROW_SCHEDULE;
+        while (index < data.length) {
+            if(index == 0){
+                pincode.enable = (data[index] == (byte) 0x01) ? true : false;
+                index++;
+                pincode_len = data[index] & 0xff;
+                index++;
+                if(pincode_len > 6){
+                    throw new Exception("pincode length not make sense");
+                }
+                if ( (2 + pincode_len + 12) >= data.length) {
+                    throw new Exception("data.length not make sense with this pincode size, missing schedule data");
+                }
+                if(pincode_len > 0 && pincode_len <= 6) {
+                    pincode.pincode = new byte[pincode_len];
+                    for(int i = 0 ; i < pincode_len ; i++){
+                        pincode.pincode[i] = data[index];
+                        index++;
                     }
-                    break;
-                case DATA_TAG_PINCODE:
-                    if (data_index < pincode_len) {
-                        pincode.pincode[data_index++] = b;
-                    } else {
-                        // next
-                        data_index = 0;
-                        step = DATA_TAG_ROW_SCHEDULE;
-                    }
-                    break;
-                case DATA_TAG_ROW_SCHEDULE:
-                    if (data_index < 12) {
-                        pincode.row_schedule[data_index++] = b;
-                    } else {
-                        // next
-                        data_index = 0;
-                        step = DATA_TAG_NAME;
-                    }
-                    break;
-                case DATA_TAG_NAME:
-                    tmp_name[data_index++] = b;
-                    break;
-            }
-        }
-        if (data_index > 0) {
-            pincode.name = new byte[data_index];
-            for ( int i = 0 ; i < data_index ; i++ ) {
-                pincode.name[i] = tmp_name[i];
+                }
+                for(int i = 0 ; i < pincode.row_schedule.length ; i++ ){
+                    pincode.row_schedule[i] = data[index];
+                    index++;
+                }
+                continue;
+            } else {
+                // name
+                pincode.name = new byte[data.length - index];
+                for(int i = 0 ; i < pincode.name.length ; i++){
+                    pincode.name[i] = data[index];
+                    index++;
+                }
             }
         }
         pincode.schedule = SunionPincodeSchedule.decodePincodeSchedulePayload(pincode.row_schedule);

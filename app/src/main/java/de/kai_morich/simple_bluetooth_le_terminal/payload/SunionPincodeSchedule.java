@@ -46,13 +46,13 @@ public class SunionPincodeSchedule {
     public static final byte WEEK_TIME_START = (byte) 0x02;
     public static final byte WEEK_TIME_END = (byte) 0x03;
     public static final byte WEEK_TIME_MIN = (byte) 0x00;
-    public static final byte WEEK_TIME_MAX = (byte) 0x95;
+    public static final byte WEEK_TIME_MAX = (byte) 0x5F;
     public static final byte WEEK_TIME_NOT_USE = (byte) 0xAA;
 
     public static final byte SEEK_TIME_START = (byte) 0x04;
     public static final byte SEEK_TIME_END = (byte) 0x08;
-    public static final byte SEEK_TIME_MIN = (byte) 0x00;
-    public static final byte SEEK_TIME_MAX = (byte) 0x95;
+    public static final int SEEK_TIME_MIN = 0;
+    public static final int SEEK_TIME_MAX = 86399;
     public static final byte SEEK_TIME_NOT_USE = (byte) 0xAA;
 
     private byte[] row_schedule;
@@ -123,12 +123,12 @@ public class SunionPincodeSchedule {
         if (this.schedule_type != WEEK_ROUTINE) {
             return new byte[]{};
         }
-        int count = 0;
         byte[] tmp = new byte[7];
-        for (byte cmp : WEEK_GROUP){
-            if ((weekday & cmp) == cmp) {
+        int count = 0;
+        for (int i = 0 ; i < tmp.length ; i++){
+            if((weekday & WEEK_GROUP[i]) == WEEK_GROUP[i] ){
+                tmp[i] = WEEK_GROUP[i];
                 count++;
-                tmp[count] = cmp;
             }
         }
         if ( count > 0 ) {
@@ -181,13 +181,22 @@ public class SunionPincodeSchedule {
     }
     public byte getWeekTime(byte ent){
         switch(ent){
-            case SEEK_TIME_START:
+            case WEEK_TIME_START:
                 return weektime_start;
-            case SEEK_TIME_END:
+            case WEEK_TIME_END:
                 return weektime_end;
             default:
                 return (byte)0x00;
         }
+    }
+    public String getWeekTimeConvert(byte weektime){
+        // p 0 ~ 95
+        int p = (weektime & 0xff) + 1;
+        // p 1 ~ 96
+        p = p * 900;
+        int h = p / 3600;
+        int m = p % 60;
+        return String.format("%02d", h) + ":" + String.format("%02d", m);
     }
     @Override
     public String toString(){
@@ -207,7 +216,7 @@ public class SunionPincodeSchedule {
                 for (byte day : this.decodeWeekDay(this.getWeekDay())){
                     message += this.weekdayToString(day) + " ";
                 }
-                message += "\nfrom " + this.getWeekTime(WEEK_TIME_START) + "\nto " + this.getWeekTime(WEEK_TIME_END);
+                message += "\nfrom " + this.getWeekTimeConvert(this.getWeekTime(WEEK_TIME_START)) + "\nto " + this.getWeekTimeConvert(this.getWeekTime(WEEK_TIME_END));
                 break;
             case SEEK_TIME:
                 message += "time range : \nfrom " + CodeUtils.convertDate(this.getSeekTime(SEEK_TIME_START)).toString() + "\nto " + CodeUtils.convertDate(this.getSeekTime(SEEK_TIME_END)).toString();

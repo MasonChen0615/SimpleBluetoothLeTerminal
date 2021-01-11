@@ -11,19 +11,26 @@ import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -59,6 +66,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private TextView sendText;
     private TextUtil.HexWatcher hexWatcher;
     private Spinner mSpn;
+    private PopupWindow popupWindow;
+    private Button command_button, btnConfirm;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
@@ -78,6 +87,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private int get_log_index = 0;
     private int storage_token_index = 0;
     private int storage_pincode_index = 0;
+    ArrayList<HashMap<String, String>> leaders;
 //    private byte[] communication_AES_KEY;  // C1 and C1 aes key xor
 //    private String communication_token = "";
 
@@ -153,6 +163,156 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         service = null;
     }
 
+    private void initPopupWindow() {
+        View view = LayoutInflater.from(this.getContext()) .inflate(R.layout.popupwindow_layout, null);
+        popupWindow = new PopupWindow(view); popupWindow.setWidth(ViewGroup.LayoutParams.WRAP_CONTENT); popupWindow.setHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
+        popupWindow.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
+        popupWindow.setFocusable(true);
+        popupWindow.setOutsideTouchable(false);
+        popupWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        TextView command_setting_head = (TextView) view.findViewById(R.id.command_setting_head);
+        command_setting_head.setText(leaders.get(current_command_select_position).get(NAME) + " " + getResources().getString(R.string.CommandArgs));
+        TextView[] command_arg = {
+                (TextView) view.findViewById(R.id.command_arg_1),
+                (TextView) view.findViewById(R.id.command_arg_2),
+                (TextView) view.findViewById(R.id.command_arg_3),
+                (TextView) view.findViewById(R.id.command_arg_4),
+                (TextView) view.findViewById(R.id.command_arg_5)
+        };
+        EditText[] edit_command_arg = {
+                (EditText) view.findViewById(R.id.edit_command_arg_1),
+                (EditText) view.findViewById(R.id.edit_command_arg_2),
+                (EditText) view.findViewById(R.id.edit_command_arg_3),
+                (EditText) view.findViewById(R.id.edit_command_arg_4),
+                (EditText) view.findViewById(R.id.edit_command_arg_5)
+        };
+        LinearLayout[] args_group = {
+                (LinearLayout) view.findViewById(R.id.group_command_arg_1),
+                (LinearLayout) view.findViewById(R.id.group_command_arg_2),
+                (LinearLayout) view.findViewById(R.id.group_command_arg_3),
+                (LinearLayout) view.findViewById(R.id.group_command_arg_4),
+                (LinearLayout) view.findViewById(R.id.group_command_arg_5),
+        };
+        Spinner[] dy_mSpn = {
+                new Spinner(this.getContext()),
+                new Spinner(this.getContext()),
+                new Spinner(this.getContext()),
+                new Spinner(this.getContext()),
+                new Spinner(this.getContext()),
+        };
+        for(int i = 0; i < dy_mSpn.length ; i++){
+            dy_mSpn[i].setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View v, int position, long id)
+                {
+                    // TODO Auto-generated method stub
+                    Log.i(Constants.DEBUG_TAG,"command args selected:" + parent.getItemAtPosition(position).toString());
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> arg0)
+                {
+                    // TODO Auto-generated method stub
+                }
+            });
+            args_group[i].addView(dy_mSpn[i]);
+        }
+        for(int i = 0 ; i < 5 ; i++){
+            command_arg[i].setVisibility(View.GONE);
+            edit_command_arg[i].setVisibility(View.GONE);
+            edit_command_arg[i].setText("");
+            dy_mSpn[i].setVisibility(View.GONE);
+        }
+        switch(current_command_select_position){
+            case Constants.CMD_0xC0:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText("連線亂數");
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint("16 bytes,參數由程式管理");
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
+                break;
+            case Constants.CMD_0xC1:
+                break;
+            case Constants.CMD_0xCC:
+                break;
+            case Constants.CMD_0xCE:
+                break;
+            case Constants.CMD_0xD0:
+                break;
+            case Constants.CMD_0xD1:
+                break;
+            case Constants.CMD_0xD2:
+                break;
+            case Constants.CMD_0xD3:
+                break;
+            case Constants.CMD_0xD4:
+                break;
+            case Constants.CMD_0xD5:
+                break;
+            case Constants.CMD_0xD6:
+                break;
+            case Constants.CMD_0xD7:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText("設定鎖體狀態");
+                String[] names = getResources().getStringArray(R.array.command_arg_D7);
+                String[] creation = getResources().getStringArray(R.array.command_arg_D7);
+                ArrayList<String> leaders_D7 = new ArrayList<String>();
+                for(int i = 0; i < names.length; i++){
+                    leaders_D7.add(names[i]);
+                }
+                ArrayAdapter<String> adapter = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_D7);
+                adapter.setDropDownViewResource( R.layout.command_args_spinner_item);
+                dy_mSpn[0].setAdapter(adapter);
+                dy_mSpn[0].setVisibility(View.VISIBLE);
+                break;
+            case Constants.CMD_0xE0:
+                break;
+            case Constants.CMD_0xE1:
+                break;
+            case Constants.CMD_0xE2:
+                break;
+            case Constants.CMD_0xE3:
+                break;
+            case Constants.CMD_0xE4:
+                break;
+            case Constants.CMD_0xE5:
+                break;
+            case Constants.CMD_0xE6:
+                break;
+            case Constants.CMD_0xE7:
+                break;
+            case Constants.CMD_0xE8:
+                break;
+            case Constants.CMD_0xE9:
+                break;
+            case Constants.CMD_0xEA:
+                break;
+            case Constants.CMD_0xEB:
+                break;
+            case Constants.CMD_0xEC:
+                break;
+            case Constants.CMD_0xED:
+                break;
+            case Constants.CMD_0xEE:
+                break;
+            case Constants.CMD_0xEF:
+                break;
+            default:
+                break;
+        }
+        btnConfirm = (Button) view.findViewById(R.id.btnConform);
+        btnConfirm.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                switch (view.getId()) {
+                    case R.id.btnConform:
+                        popupWindow.dismiss();
+                        break;
+                }
+            }
+        });
+    }
+
     /*
      * UI
      */
@@ -169,13 +329,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         sendText.addTextChangedListener(hexWatcher);
         sendText.setHint(hexEnabled ? "HEX mode" : "");
 
-        mSpn = (Spinner) view.findViewById(R.id.CommandSpinner);
+        Spinner mSpn = (Spinner) view.findViewById(R.id.CommandSpinner);
         mSpn.setOnItemSelectedListener(spnOnItemSelected);
-
 
         String[] names = getResources().getStringArray(R.array.command_names);
         String[] creation = getResources().getStringArray(R.array.command_values);
-        ArrayList<HashMap<String, String>> leaders = new ArrayList<HashMap<String, String>>();
+        leaders = new ArrayList<HashMap<String, String>>();
         for(int i = 0; i < names.length; i++){
             HashMap<String, String> leader = new HashMap<String, String>();
             leader.put(NAME, names[i]);
@@ -185,7 +344,18 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
         View sendBtn = view.findViewById(R.id.send_btn);
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
-        Button command_button= (Button)view.findViewById(R.id.Command);
+
+        command_button= (Button)view.findViewById(R.id.Command);
+        command_button.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view){ //實作onLongClick介面定義的方法
+                //        popupWindow
+                initPopupWindow();
+                popupWindow.showAtLocation(view, Gravity.CENTER_HORIZONTAL, 0, 0);
+                Log.i(Constants.DEBUG_TAG,"onLongClick:" + leaders.get(current_command_select_position).get(NAME));
+                return true;
+            }
+        });
         command_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -403,7 +573,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                             byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
                             SunionPincodeStatus pincode = new SunionPincodeStatus(
                                     true,
-                                    new byte[]{0x00,0x00,0x00,0x00},
+                                    new byte[]{SunionPincodeStatus.PWD_1,SunionPincodeStatus.PWD_2,SunionPincodeStatus.PWD_3,SunionPincodeStatus.PWD_4},
                                     new SunionPincodeSchedule(
                                             SunionPincodeSchedule.WEEK_ROUTINE,
                                             weekday,
