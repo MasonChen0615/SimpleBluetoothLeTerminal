@@ -37,6 +37,7 @@ class SerialSocket extends BluetoothGattCallback {
         void onDescriptorWrite(BluetoothGatt g, BluetoothGattDescriptor d, int status) { /*nop*/ }
         void onCharacteristicChanged(BluetoothGatt g, BluetoothGattCharacteristic c) {/*nop*/ }
         void onCharacteristicWrite(BluetoothGatt g, BluetoothGattCharacteristic c, int status) { /*nop*/ }
+        void onCharacteristicRead(BluetoothGatt g, BluetoothGattCharacteristic c, int status) { /*nop*/ }
         boolean canWrite() { return true; }
         void disconnect() {/*nop*/ }
     }
@@ -57,6 +58,7 @@ class SerialSocket extends BluetoothGattCallback {
     //sunion
     private static final UUID BLUETOOTH_LE_Sunion_SERVICE = UUID.fromString("fc3d8cf8-4ddc-7ade-1dd9-2497851131d7");
     private static final UUID BLUETOOTH_LE_Sunion_RW = UUID.fromString("de915dce-3539-61ea-ade7-d44a2237601f");
+    private static final UUID BLUETOOTH_LE_Sunion_TEST_RW = UUID.fromString("aee59d32-0e5a-2e52-20b8-8d1e56a3a343");
 
     // https://play.google.com/store/apps/details?id=com.telit.tiosample
     // https://www.telit.com/wp-content/uploads/2017/09/TIO_Implementation_Guide_r6.pdf
@@ -81,11 +83,27 @@ class SerialSocket extends BluetoothGattCallback {
     private BluetoothDevice device;
     private BluetoothGatt gatt;
     private BluetoothGattCharacteristic readCharacteristic, writeCharacteristic;
+    private BluetoothGattCharacteristic readCharacteristic_test, writeCharacteristic_test;
 
     private boolean writePending;
     private boolean canceled;
     private boolean connected;
     private int payloadSize = DEFAULT_MTU-3;
+
+    private boolean run_watch = false;
+    private boolean kill_watch = false;
+
+    synchronized public void resetWatchRead(){
+        kill_watch = false;
+    }
+
+    synchronized public void killWatchRead(){
+        kill_watch = true;
+    }
+
+    synchronized public Boolean checkWatchRead(){
+        return !kill_watch;
+    }
 
     SerialSocket(Context context, BluetoothDevice device) {
         if(context instanceof Activity)
@@ -127,6 +145,8 @@ class SerialSocket extends BluetoothGattCallback {
         }
         readCharacteristic = null;
         writeCharacteristic = null;
+        readCharacteristic_test = null;
+        writeCharacteristic_test = null;
         if(delegate != null)
             delegate.disconnect();
         if (gatt != null) {
@@ -312,6 +332,51 @@ class SerialSocket extends BluetoothGattCallback {
             onSerialConnectError(new IOException("read characteristic CCCD descriptor not writable"));
         }
         // continues asynchronously in onDescriptorWrite()
+        if(readCharacteristic_test != null){
+            resetWatchRead();
+            if (!run_watch) {
+                Thread thread = new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            Boolean first_wait = true;
+                            Boolean can_run = true;
+                            while(can_run) {
+                                if (!checkWatchRead()){
+                                    can_run = false;
+                                    String message = "auto read action stop.";
+                                    String mymessage = Constants.EXCHANGE_MESSAGE_PREFIX + message + Constants.EXCHANGE_MESSAGE_PREFIX;
+                                    onSerialRead(mymessage.getBytes());
+                                    continue;
+                                }
+                                if (first_wait) {
+                                    String message = "delay 10 sec for auto read tag.";
+                                    String mymessage = Constants.EXCHANGE_MESSAGE_PREFIX + message + Constants.EXCHANGE_MESSAGE_PREFIX;
+                                    onSerialRead(mymessage.getBytes());
+                                    sleep(10000);
+                                    first_wait = false;
+                                    continue;
+                                }
+                                if (gatt != null && readCharacteristic_test != null){
+                                    sleep(200);
+                                    gatt.readCharacteristic(readCharacteristic_test);
+                                    continue;
+                                } else {
+                                    can_run = false;
+                                    String message = "auto read action stop.";
+                                    String mymessage = Constants.EXCHANGE_MESSAGE_PREFIX + message + Constants.EXCHANGE_MESSAGE_PREFIX;
+                                    onSerialRead(mymessage.getBytes());
+                                    continue;
+                                }
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                };
+                thread.start();
+            }
+        }
     }
 
     @Override
@@ -345,6 +410,26 @@ class SerialSocket extends BluetoothGattCallback {
             return;
         if(characteristic == readCharacteristic) { // NOPMD - test object identity
             byte[] data = readCharacteristic.getValue();
+            onSerialRead(data);
+            Log.d(TAG,"read, len="+data.length);
+        }
+    }
+
+    @Override
+    public void onCharacteristicRead (BluetoothGatt gatt,
+                                      BluetoothGattCharacteristic characteristic,
+                                      int status) {
+        if(canceled)
+            return;
+        delegate.onCharacteristicRead(gatt, characteristic,status);
+        if(canceled)
+            return;
+        if(characteristic == readCharacteristic) { // NOPMD - test object identity
+            byte[] data = readCharacteristic.getValue();
+            onSerialRead(data);
+            Log.d(TAG,"read, len="+data.length);
+        } else if (characteristic == readCharacteristic_test){
+            byte[] data = readCharacteristic_test.getValue();
             onSerialRead(data);
             Log.d(TAG,"read, len="+data.length);
         }
@@ -461,6 +546,10 @@ class SerialSocket extends BluetoothGattCallback {
         @Override
         boolean connectCharacteristics(BluetoothGattService gattService) {
             Log.d(TAG, "service Sunion uart");
+            if (gattService.getCharacteristic(BLUETOOTH_LE_Sunion_TEST_RW) != null){
+                readCharacteristic_test = gattService.getCharacteristic(BLUETOOTH_LE_Sunion_TEST_RW);
+                writeCharacteristic_test = gattService.getCharacteristic(BLUETOOTH_LE_Sunion_TEST_RW);
+            }
             if (gattService.getCharacteristic(BLUETOOTH_LE_Sunion_RW) != null){
                 readCharacteristic = gattService.getCharacteristic(BLUETOOTH_LE_Sunion_RW);
                 writeCharacteristic = gattService.getCharacteristic(BLUETOOTH_LE_Sunion_RW);
@@ -479,29 +568,6 @@ class SerialSocket extends BluetoothGattCallback {
                 characteristic_with_c0.addDescriptor(gatt_descriptor_with_c0);
                 readCharacteristic = characteristic_with_c0;
                 writeCharacteristic = characteristic_with_c0;
-//                mBluetoothGatt.setCharacteristicNotification(characteristic_with_c0, true);
-//                try {
-//                    KeyGenerator keygen = KeyGenerator.getInstance("AES");
-//                    keygen.init(128);
-//                    SecretKey key = keygen.generateKey();
-//                    byte[] mykey = key.getEncoded();
-//                    byte[] message  = CodeUtils.getCommandPackage(CodeUtils.BLE_Connect, (byte)0x10, mykey);
-//                    tvlog.setText("APP傳送:C010"+CodeUtils.bytesToHex(message));
-//                    Log.i(TAG,"write message");
-//                    characteristic_with_c0.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
-//                    characteristic_with_c0.setValue(message);
-//                    mBluetoothGatt.writeCharacteristic(characteristic_with_c0);
-//                    mBluetoothGatt.writeDescriptor(gatt_descriptor_with_c0);
-//                    try{
-//                        // delay 1 second
-//                        Thread.sleep(1000);
-//                    } catch(InterruptedException e){
-//                        e.printStackTrace();
-//                    }
-//                    mBluetoothGatt.discoverServices();
-//                } catch (NoSuchAlgorithmException e) {
-//                    e.printStackTrace();
-//                }
             }
             return true;
         }
@@ -681,6 +747,7 @@ class SerialSocket extends BluetoothGattCallback {
         void disconnect() {
             readCreditsCharacteristic = null;
             writeCreditsCharacteristic = null;
+            run_watch = false;
         }
 
         private void grantReadCredits() {

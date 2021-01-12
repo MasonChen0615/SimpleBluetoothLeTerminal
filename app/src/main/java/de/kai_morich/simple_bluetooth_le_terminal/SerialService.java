@@ -79,6 +79,10 @@ public class SerialService extends Service implements SerialListener {
     private SerialListener listener;
     private boolean connected;
 
+    public void killWatchRead(){
+        socket.killWatchRead();
+    }
+
     /**
      * Lifecylce
      */
@@ -262,13 +266,13 @@ public class SerialService extends Service implements SerialListener {
                 if (listener != null) {
                     mainLooper.post(() -> {
                         if (listener != null) { //Run command logic in here
-                            if ((data.length % 16) == 0){
+                            if ((data.length % 16) == 0 && !socket.checkWatchRead()){
                                 byte[] decode = CodeUtils.decodeAES(getConnectionAESKey(),CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data);
                                 listener.onSerialRead(decode);
                                 sunionCommandHandler(data);
                             }else{
                                 listener.onSerialRead(data);
-                                printMessage("wait command");
+                                //printMessage("wait command");
                             }
                         } else {
                             queue1.add(new QueueItem(QueueType.Read, data, null));
@@ -845,7 +849,7 @@ public class SerialService extends Service implements SerialListener {
 //                    8	1	電量警告 2:危險, 1:弱電, 0:正常
 //                    9 ~ 12	4	TimeStamp (Unix)
                     byte[] payload = commandPackage.getData();
-                    if (payload.length == 6) {
+                    if (payload.length == 12) {
                         printMessage(Constants.CMD_NAME_0xD7 + " status report start");
                         printMessage("lock status:" + CodeUtils.bytesToHex(new byte[]{payload[0]}));
                         printMessage("keypress beep:" + CodeUtils.bytesToHex(new byte[]{payload[1]}));
@@ -1189,7 +1193,7 @@ public class SerialService extends Service implements SerialListener {
                         printMessage("state machine default : " + "Deadbolt state is unknown");
                     }
                 }
-                listener.onSerialRead("wait command".getBytes());
+//                listener.onSerialRead("wait command".getBytes());
                 // not to do.
                 break;
         }

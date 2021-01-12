@@ -476,7 +476,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                             popNotice("you need to run 0xE0 InquireLogCount to get total log size");
                         } else {
                             data = new byte[1];
-                            data[0] = (byte) getLogIndex();
+//                            data[0] = (byte) getLogIndex();
+                            // is count not index. one click delete one log.
+                            data[0] = (byte) 0x01;
                             commandNormal(CodeUtils.DeleteLog,(byte) data.length,data);
                         }
                         break;
@@ -875,6 +877,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
             return;
         }
+        service.killWatchRead();
         try {
             String msg;
             byte[] data;
@@ -906,6 +909,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void receive(byte[] data) {
+        if (receiveText.length() > 5000) {
+            CharSequence tmp = receiveText.getText();
+            receiveText.setText(tmp.subSequence(receiveText.length()/2 , receiveText.length()-1));
+        }
         if(hexEnabled) {
             if(CodeUtils.isBytesCanRead(data)){
                 String s = new String(data);

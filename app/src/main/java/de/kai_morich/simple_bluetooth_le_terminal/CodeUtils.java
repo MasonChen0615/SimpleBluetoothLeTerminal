@@ -216,7 +216,7 @@ public class CodeUtils {
                         } else if (count == 2) {
                                 command = b;
                         } else if (count == 3) {
-                                command_len = b;
+                                command_len = b & 0xff;
                                 if (data.length < command_len) {
                                         //some receive error in here.
                                         return new SunionCommandPayload((byte)0x00,0,new byte[]{},0);
