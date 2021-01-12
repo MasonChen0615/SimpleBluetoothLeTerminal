@@ -932,6 +932,7 @@ public class SerialService extends Service implements SerialListener {
                 if (checkCommandIncome(commandPackage,CodeUtils.InquireToken)){
                     byte[] payload = commandPackage.getData();
                     int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
                     if (payload.length >= 10) {
 //                        1	1	是否可用 1:可用, 0:不可用
 //                        2	1	是否是永久 Token 1:永久, 0:一次性
@@ -1000,8 +1001,9 @@ public class SerialService extends Service implements SerialListener {
                 break;
             case CodeUtils.ModifyToken:
                 if (checkCommandIncome(commandPackage,CodeUtils.ModifyToken)){
-                    byte[] payload = commandPackage.getData();
                     int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
+                    byte[] payload = commandPackage.getData();
                     if (payload.length >= 10) {
 //                        1	1	是否可用 1:可用, 0:不可用
 //                        2	1	是否是永久 Token 1:永久, 0:一次性
@@ -1039,6 +1041,8 @@ public class SerialService extends Service implements SerialListener {
                 break;
             case CodeUtils.DeleteToken:
                 if (checkCommandIncome(commandPackage,CodeUtils.DeleteToken)){
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
                     byte[] payload = commandPackage.getData();
                     if (payload.length == 1) {
                         if ( payload[0] == (byte) 0x01 ) {
@@ -1102,6 +1106,8 @@ public class SerialService extends Service implements SerialListener {
                 break;
             case CodeUtils.NewPinCode:
                 if (checkCommandIncome(commandPackage,CodeUtils.NewPinCode)){
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
                     byte[] payload = commandPackage.getData();
                     if (payload.length == 1) {
                         if ( payload[0] == (byte) 0x01 ) {
@@ -1118,10 +1124,59 @@ public class SerialService extends Service implements SerialListener {
                 }
                 break;
             case CodeUtils.ModifyPinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.ModifyPinCode)){
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xED + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xED + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xED + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xED + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.DeletePinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.DeletePinCode)){
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xEE + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xEE + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xEE + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xEE + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.HaveMangerPinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.HaveMangerPinCode)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xEF + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xEF + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xEF + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xEF + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             default:
                 if (commandPackage.getCommand() == CodeUtils.InquireLockState) {  // default action.

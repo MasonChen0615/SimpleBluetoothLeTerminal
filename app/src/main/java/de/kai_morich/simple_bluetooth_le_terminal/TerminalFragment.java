@@ -221,14 +221,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             command_arg[i].setVisibility(View.GONE);
             edit_command_arg[i].setVisibility(View.GONE);
             edit_command_arg[i].setText("");
+            edit_command_arg[i].setInputType(InputType.TYPE_CLASS_TEXT);
             dy_mSpn[i].setVisibility(View.GONE);
         }
         switch(current_command_select_position){
             case Constants.CMD_0xC0:
                 command_arg[0].setVisibility(View.VISIBLE);
-                command_arg[0].setText("連線亂數");
+                command_arg[0].setText(R.string.Command_CMD_0xC0_Arg0);
                 edit_command_arg[0].setVisibility(View.VISIBLE);
-                edit_command_arg[0].setHint("16 bytes,參數由程式管理");
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xC0_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xC1:
@@ -253,7 +254,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 break;
             case Constants.CMD_0xD7:
                 command_arg[0].setVisibility(View.VISIBLE);
-                command_arg[0].setText("設定鎖體狀態");
+                command_arg[0].setText(R.string.Command_CMD_0xD7_Arg0);
                 String[] names = getResources().getStringArray(R.array.command_arg_D7);
                 String[] creation = getResources().getStringArray(R.array.command_arg_D7);
                 ArrayList<String> leaders_D7 = new ArrayList<String>();
@@ -290,6 +291,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             case Constants.CMD_0xEB:
                 break;
             case Constants.CMD_0xEC:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xEC_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xEC_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xED:
                 break;
@@ -478,6 +484,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //                        break;
                     case Constants.CMD_0xE4:
                         commandNormal(CodeUtils.InquireTokenArray,(byte) 0x00,new byte[]{});
+                        storage_token_index = 0;
                         break;
                     case Constants.CMD_0xE5:
                         if (!service.getLockStorageTokenISSet()) {
@@ -486,6 +493,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                             data = new byte[1];
                             int run_storage_token_index = getStorageTokenIndex();
                             data[0] = (byte) run_storage_token_index;
+                            popNotice("Token index is " + ((int)(data[0] & (byte)0xff)));
                             commandWithStep(
                                     CodeUtils.InquireToken,
                                     run_storage_token_index + "",
@@ -536,17 +544,23 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                             data = new byte[1];
                             data[0] = (byte) getStorageTokenIndex();
                             popNotice("Delete Token index is " + ((int)(data[0] & (byte)0xff)));
-                            commandNormal(CodeUtils.DeleteToken,(byte) data.length,data);
+                            commandWithStep(
+                                    CodeUtils.DeleteToken,
+                                    ((int)(data[0] & (byte)0xff)) + "",
+                                    (byte)data.length,
+                                    data
+                            );
                         }
                         break;
 //                    case Constants.CMD_0xE9:
 //                        break;
                     case Constants.CMD_0xEA:
                         commandNormal(CodeUtils.InquirePinCodeArray,(byte) 0x00,new byte[]{});
+                        storage_pincode_index = 0;
                         break;
                     case Constants.CMD_0xEB:
                         if (!service.getLockStoragePincodeISSet()) {
-                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                            popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
                         } else {
                             data = new byte[1];
                             data[0] = (byte) getStoragePincodeIndex();
@@ -561,7 +575,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         break;
                     case Constants.CMD_0xEC:
                         if (!service.getLockStoragePincodeISSet()) {
-                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                            popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
                         } else {
                             // TODO: Add ui to control.
 //                            1	1	Index 0 ~ 200
@@ -600,10 +614,56 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         }
                         break;
                     case Constants.CMD_0xED:
+                        if (!service.getLockStoragePincodeISSet()) {
+                            popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
+                        } else {
+                            // TODO: Add ui to control.
+                            byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
+                            SunionPincodeStatus pincode = new SunionPincodeStatus(
+                                    true,
+                                    new byte[]{SunionPincodeStatus.PWD_5,SunionPincodeStatus.PWD_6,SunionPincodeStatus.PWD_7,SunionPincodeStatus.PWD_8},
+                                    new SunionPincodeSchedule(
+                                            SunionPincodeSchedule.WEEK_ROUTINE,
+                                            weekday,
+                                            SunionPincodeSchedule.WEEK_TIME_MIN,
+                                            SunionPincodeSchedule.WEEK_TIME_MAX,
+                                            SunionPincodeSchedule.SEEK_TIME_MIN,
+                                            SunionPincodeSchedule.SEEK_TIME_MAX
+                                    ),
+                                    "Modify Code".getBytes()
+                            );
+                            tmp = pincode.encodePincodePayload();
+                            data = new byte[1+tmp.length];
+                            data[0] = (byte) getStoragePincodeIndex();
+                            popNotice("PinCode index is " + ((int)(data[0] & (byte)0xff)));
+                            for (int i = 1 ; i < data.length ; i++) {
+                                data[i] = tmp[i-1];
+                            }
+                            commandWithStep(
+                                    CodeUtils.ModifyPinCode,
+                                    ((int)(data[0] & (byte)0xff)) + "",
+                                    (byte)data.length,
+                                    data
+                            );
+                        }
                         break;
                     case Constants.CMD_0xEE:
+                        if (!service.getLockStoragePincodeISSet()) {
+                            popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
+                        } else {
+                            data = new byte[1];
+                            data[0] = (byte) getStoragePincodeIndex();
+                            popNotice("PinCode index is " + ((int)(data[0] & (byte)0xff)));
+                            commandWithStep(
+                                    CodeUtils.DeletePinCode,
+                                    ((int)(data[0] & (byte)0xff)) + "",
+                                    (byte)data.length,
+                                    data
+                            );
+                        }
                         break;
                     case Constants.CMD_0xEF:
+                        commandNormal(CodeUtils.HaveMangerPinCode,(byte) 0x00,new byte[]{});
                         break;
                     default:
                         break;

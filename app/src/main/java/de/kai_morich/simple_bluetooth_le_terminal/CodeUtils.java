@@ -150,6 +150,15 @@ public class CodeUtils {
          */
         public static final byte HaveMangerPinCode = (byte) 0xEF;
 
+
+        /**
+         * Test tool
+         */
+        public static final byte ToolGetAllToken = (byte) 0x01;
+        public static final byte ToolGetAllPinCode = (byte) 0x02;
+        public static final byte ToolGetAllEnablePinCode = (byte) 0x03;
+        public static final byte ToolAutoConnect = (byte) 0x04;
+
         public static Date convertDate(int timestamp){
                 long my_timestamp = ((long)timestamp) * ((long)1000);
                 return new Date( my_timestamp );

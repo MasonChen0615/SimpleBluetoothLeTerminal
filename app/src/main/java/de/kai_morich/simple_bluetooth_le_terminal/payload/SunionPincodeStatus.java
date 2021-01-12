@@ -80,7 +80,7 @@ public class SunionPincodeStatus {
                 if(pincode_len > 6){
                     throw new Exception("pincode length not make sense");
                 }
-                if ( (2 + pincode_len + 12) >= data.length) {
+                if ( (2 + pincode_len + 12) > data.length) {
                     throw new Exception("data.length not make sense with this pincode size, missing schedule data");
                 }
                 if(pincode_len > 0 && pincode_len <= 6) {
