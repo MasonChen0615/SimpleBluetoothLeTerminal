@@ -68,6 +68,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private Spinner mSpn;
     private PopupWindow popupWindow;
     private Button command_button, btnConfirm;
+    private Menu menu;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
@@ -88,8 +89,16 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private int storage_token_index = 0;
     private int storage_pincode_index = 0;
     ArrayList<HashMap<String, String>> leaders;
-//    private byte[] communication_AES_KEY;  // C1 and C1 aes key xor
-//    private String communication_token = "";
+
+    private int wait_reconnection_delay = 0;
+
+    synchronized private int getReconnectionDelay(){
+        return wait_reconnection_delay;
+    }
+
+    synchronized private void setReconnectionDelay(int delay){
+        wait_reconnection_delay = delay;
+    }
 
     /*
      * Lifecycle
@@ -809,6 +818,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.menu_terminal, menu);
         menu.findItem(R.id.hex).setChecked(hexEnabled);
+        this.menu = menu;
+        setConnectStatusBtn(false);
     }
 
     @Override
@@ -838,8 +849,42 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             return true;
         } else if (id == R.id.token) {
             deleteToken();
-            Toast toast = Toast.makeText(this.getContext(), "token delete" , Toast.LENGTH_SHORT);
-            toast.show();
+            popNotice("token delete");
+            return true;
+        } else if (id == R.id.reconnect) {
+            int my_delay = getReconnectionDelay();
+            if (my_delay > 0){
+                popNotice("Wait cooldown in " + my_delay  + " sec");
+                return true;
+            }
+            if (connected == Connected.False) {
+                getActivity().runOnUiThread(this::connect);
+            } else {
+                if (connected == Connected.Pending) {
+                    popNotice("Connection Pending");
+                }
+                if (connected == Connected.True) {
+                    popNotice("Connection connected");
+                }
+            }
+            return true;
+        } else if (id == R.id.disconnect) {
+            status("connection lost: Manual" );
+            disconnect();
+            Thread thread = new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        for(int i = 0 ; i < 10 ; i++){
+                            sleep(1000);
+                            setReconnectionDelay(9-i);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            };
+            thread.start();
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -859,6 +904,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
             status("connecting...");
+            setConnectStatusBtn(true);
             connected = Connected.Pending;
             SerialSocket socket = new SerialSocket(getActivity().getApplicationContext(), device);
             service.connect(socket);
@@ -868,6 +914,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void disconnect() {
+        setConnectStatusBtn(false);
         connected = Connected.False;
         service.disconnect();
     }
@@ -1009,6 +1056,20 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         service.setSecretLockToken(new SunionToken(0,new byte[]{}));
     }
 
+    private void setConnectStatusBtn(Boolean status) {
+        if (status) {
+            menu.findItem(R.id.disconnect).setVisible(true);
+            menu.findItem(R.id.disconnect).setEnabled(true);
+            menu.findItem(R.id.reconnect).setVisible(false);
+            menu.findItem(R.id.reconnect).setEnabled(false);
+        } else {
+            menu.findItem(R.id.disconnect).setVisible(false);
+            menu.findItem(R.id.disconnect).setEnabled(false);
+            menu.findItem(R.id.reconnect).setVisible(true);
+            menu.findItem(R.id.reconnect).setEnabled(true);
+        }
+    }
+
     /*
      * SerialListener
      */
@@ -1016,6 +1077,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onSerialConnect() {
         status("connected");
         connected = Connected.True;
+        setConnectStatusBtn(true);
     }
 
     @Override

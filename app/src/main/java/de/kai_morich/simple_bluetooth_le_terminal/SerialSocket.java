@@ -342,6 +342,7 @@ class SerialSocket extends BluetoothGattCallback {
                             Boolean first_wait = true;
                             Boolean can_run = true;
                             while(can_run) {
+                                sleep(200);
                                 if (!checkWatchRead()){
                                     can_run = false;
                                     String message = "auto read action stop.";
@@ -358,7 +359,6 @@ class SerialSocket extends BluetoothGattCallback {
                                     continue;
                                 }
                                 if (gatt != null && readCharacteristic_test != null){
-                                    sleep(200);
                                     gatt.readCharacteristic(readCharacteristic_test);
                                     continue;
                                 } else {
