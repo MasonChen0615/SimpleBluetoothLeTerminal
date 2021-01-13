@@ -172,6 +172,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         service = null;
     }
 
+
     private void initPopupWindow() {
         View view = LayoutInflater.from(this.getContext()) .inflate(R.layout.popupwindow_layout, null);
         popupWindow = new PopupWindow(view); popupWindow.setWidth(ViewGroup.LayoutParams.WRAP_CONTENT); popupWindow.setHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -233,6 +234,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             edit_command_arg[i].setInputType(InputType.TYPE_CLASS_TEXT);
             dy_mSpn[i].setVisibility(View.GONE);
         }
+        String[] names;
+        ArrayList<String> leaders_String;
+        ArrayAdapter<String> adapter_String;
         switch(current_command_select_position){
             case Constants.CMD_0xC0:
                 command_arg[0].setVisibility(View.VISIBLE);
@@ -242,75 +246,220 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xC1:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xC1_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xC1_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xCC:
-                break;
             case Constants.CMD_0xCE:
-                break;
             case Constants.CMD_0xD0:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xD1:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xD1_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xD1_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_TEXT);
                 break;
             case Constants.CMD_0xD2:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xD3:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xD3_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xD3_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xD4:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xD5:
+                names = getResources().getStringArray(R.array.command_arg_common_boolean);
+                leaders_String = new ArrayList<String>();
+                for(int i = 0; i < names.length; i++){
+                    leaders_String.add(names[i]);
+                }
+                for(int i = 0 ; i < 5 ; i++){
+                    command_arg[i].setVisibility(View.VISIBLE);
+                    if ( i < 4){
+                        adapter_String = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_String);
+                        adapter_String.setDropDownViewResource( R.layout.command_args_spinner_item);
+                        dy_mSpn[i].setAdapter(adapter_String);
+                        dy_mSpn[i].setVisibility(View.VISIBLE);
+                    }
+                }
+                command_arg[0].setText(R.string.Command_CMD_0xD5_Arg0);
+                command_arg[1].setText(R.string.Command_CMD_0xD5_Arg1);
+                command_arg[2].setText(R.string.Command_CMD_0xD5_Arg2);
+                command_arg[3].setText(R.string.Command_CMD_0xD5_Arg3);
+                command_arg[4].setText(R.string.Command_CMD_0xD5_Arg4);
+                edit_command_arg[4].setVisibility(View.VISIBLE);
+                edit_command_arg[4].setHint(R.string.Command_CMD_0xD5_Arg4_Message);
+                edit_command_arg[4].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xD6:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xD7:
                 command_arg[0].setVisibility(View.VISIBLE);
                 command_arg[0].setText(R.string.Command_CMD_0xD7_Arg0);
-                String[] names = getResources().getStringArray(R.array.command_arg_D7);
-                String[] creation = getResources().getStringArray(R.array.command_arg_D7);
-                ArrayList<String> leaders_D7 = new ArrayList<String>();
+                names = getResources().getStringArray(R.array.command_arg_D7);
+                leaders_String = new ArrayList<String>();
                 for(int i = 0; i < names.length; i++){
-                    leaders_D7.add(names[i]);
+                    leaders_String.add(names[i]);
                 }
-                ArrayAdapter<String> adapter = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_D7);
+                ArrayAdapter<String> adapter = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_String);
                 adapter.setDropDownViewResource( R.layout.command_args_spinner_item);
                 dy_mSpn[0].setAdapter(adapter);
                 dy_mSpn[0].setVisibility(View.VISIBLE);
                 break;
             case Constants.CMD_0xE0:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xE1:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE1_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE1_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xE2:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE2_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE2_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
-            case Constants.CMD_0xE3:
-                break;
+//            case Constants.CMD_0xE3:
+//                break;
             case Constants.CMD_0xE4:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xE5:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE5_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE5_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xE6:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE6_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE6_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_TEXT);
                 break;
             case Constants.CMD_0xE7:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE7_Arg0);
+                command_arg[0].setText(R.string.Command_CMD_0xE7_Arg1);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE7_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[1].setVisibility(View.VISIBLE);
+                edit_command_arg[1].setHint(R.string.Command_CMD_0xE7_Arg1_Message);
+                edit_command_arg[1].setInputType(InputType.TYPE_CLASS_TEXT);
                 break;
             case Constants.CMD_0xE8:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE8_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE8_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
-            case Constants.CMD_0xE9:
-                break;
+//            case Constants.CMD_0xE9:
+//                break;
             case Constants.CMD_0xEA:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xEB:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xEB_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xEB_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xEC:
+            case Constants.CMD_0xED:
+                //Index
                 command_arg[0].setVisibility(View.VISIBLE);
                 command_arg[0].setText(R.string.Command_CMD_0xEC_Arg0);
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xEC_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
-                break;
-            case Constants.CMD_0xED:
+                //Enable
+                command_arg[1].setVisibility(View.VISIBLE);
+                command_arg[1].setText(R.string.Command_CMD_0xEC_Arg1);
+                names = getResources().getStringArray(R.array.command_arg_common_boolean);
+                leaders_String = new ArrayList<String>();
+                for(int i = 0; i < names.length; i++){
+                    leaders_String.add(names[i]);
+                }
+                adapter_String = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_String);
+                adapter_String.setDropDownViewResource( R.layout.command_args_spinner_item);
+                dy_mSpn[1].setAdapter(adapter_String);
+                dy_mSpn[1].setVisibility(View.VISIBLE);
+                //PinCode
+                command_arg[2].setVisibility(View.VISIBLE);
+                command_arg[2].setText(R.string.Command_CMD_0xEC_Arg2);
+                edit_command_arg[2].setVisibility(View.VISIBLE);
+                edit_command_arg[2].setHint(R.string.Command_CMD_0xEC_Arg2_Message);
+                edit_command_arg[2].setInputType(InputType.TYPE_CLASS_NUMBER);
+                //Schedule
+                command_arg[3].setVisibility(View.VISIBLE);
+                command_arg[3].setText(R.string.Command_CMD_0xEC_Arg3);
+                //Name
+                command_arg[4].setVisibility(View.VISIBLE);
+                command_arg[4].setText(R.string.Command_CMD_0xEC_Arg4);
+                edit_command_arg[4].setVisibility(View.VISIBLE);
+                edit_command_arg[4].setHint(R.string.Command_CMD_0xEC_Arg4_Message);
+                edit_command_arg[4].setInputType(InputType.TYPE_CLASS_TEXT);
                 break;
             case Constants.CMD_0xEE:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xEE_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xEE_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xEF:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             default:
                 break;
@@ -447,8 +596,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //                        5	1	自動上鎖時間 10~99
                         int random_autolock_delay = new Random().nextInt((99 - 10) + 1) + 10;
                         data[0] = SunionLockStatus.LOCK_STATUS_NOT_TO_DO;
-                        data[1] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
-                        data[2] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
+                        data[1] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;  // keypressbee
+//                        data[2] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;  // vacation mode
+                        data[2] = (byte)0x00;  // vacation mode
                         data[3] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
                         data[4] = (byte) random_autolock_delay;
                         String notice = "鎖體方向:忽視,";
@@ -875,9 +1025,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 @Override
                 public void run() {
                     try {
-                        for(int i = 0 ; i < 10 ; i++){
+                        for(int i = 0 ; i < Constants.CONNECT_RETRY_DELAY ; i++){
                             sleep(1000);
-                            setReconnectionDelay(9-i);
+                            setReconnectionDelay((Constants.CONNECT_RETRY_DELAY-1)-i);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -908,6 +1058,26 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             connected = Connected.Pending;
             SerialSocket socket = new SerialSocket(getActivity().getApplicationContext(), device);
             service.connect(socket);
+            Thread thread = new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        int count = 0;
+                        while(connected == Connected.Pending){
+                            sleep(5000);
+                            if (connected == Connected.Pending) {
+                                status("connection time >" + (5 * (count+1)) + " sec");
+                                count++;
+                            } else {
+                                break;
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            };
+            thread.start();
         } catch (Exception e) {
             onSerialConnectError(e);
         }
@@ -976,30 +1146,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                     receiveText.append(spn);
                 } else if (s.indexOf(Constants.EXCHANGE_DATA_PREFIX) == 0) {
-//                    int prefix = Constants.EXCHANGE_MESSAGE_PREFIX.length();
-//                    String message = s.substring(prefix, s.length() - prefix);
-//                    if (message.indexOf(Constants.EXCHANGE_DATA_0xE0_PREFIX) == 0) {
-//                        int tag_prefix = Constants.EXCHANGE_DATA_0xE0_PREFIX.length();
-//                        String base64 = message.substring(tag_prefix, message.length() - tag_prefix);
-//                        try {
-//                            JSONObject json = new JSONObject(CodeUtils.decodeBase64(base64));
-//                            // try CodeUtils.InquireLogCount
-//                                int InquireLogCount = json.getInt(Constants.CMD_NAME_0xE0);
-//                                if (InquireLogCount >= 0) {
-//                                    current_get_log_index = InquireLogCount;
-//                                }
-//                        } catch (JSONException e) {
-//                            e.printStackTrace();
-//                        }
-//                    } else if (message.indexOf(Constants.EXCHANGE_DATA_0xE4_PREFIX) == 0) {
-//                        int tag_prefix = Constants.EXCHANGE_DATA_0xE4_PREFIX.length();
-//                    } else if (message.indexOf(Constants.EXCHANGE_DATA_0xEA_PREFIX) == 0) {
-//                        int tag_prefix = Constants.EXCHANGE_DATA_0xEA_PREFIX.length();
-//                    } else {
-//                        // skip
-//                    }
+                    // not need to do.
                 } else if (s.indexOf(Constants.EXCHANGE_DATA_0xE0_PREFIX) == 0) {
-//                    int prefix = Constants.EXCHANGE_DATA_0xE0_PREFIX.length();
                     // not need to do.
                 } else {
                     SpannableStringBuilder spn = new SpannableStringBuilder(s+'\n');

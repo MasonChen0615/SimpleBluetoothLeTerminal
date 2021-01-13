@@ -22,6 +22,8 @@ class Constants {
     static final String EXCHANGE_TAG_0xE4_PREFIX = EXCHANGE_DATA_0xE4_PREFIX;
     static final String EXCHANGE_TAG_0xEA_PREFIX = EXCHANGE_DATA_0xEA_PREFIX;
 
+    static final int CONNECT_RETRY_DELAY = 3 ; //	連線亂數
+
     // command list
     static final int CMD_0xC0 = 0 ; //	連線亂數
     static final int CMD_0xC1 = CMD_0xC0 + 1 ; //	連線 Token

@@ -11,34 +11,53 @@
     <string name="Command">Make...</string>
     <string name="CommandArgs">Command Args</string>
 
+    <string name="Command_CMD_Common_None_Arg0">None</string>
+    <string name="Command_CMD_Common_None_Arg0_Message">0 bytes</string>
+
     <string name="Command_CMD_0xC0_Arg0">連線亂數</string>
     <string name="Command_CMD_0xC0_Arg0_Message">16 bytes,參數由程式管理</string>
-    <string name="Command_CMD_0xC1_Arg0"></string>
-    <string name="Command_CMD_0xCC_Arg0"></string>
-    <string name="Command_CMD_0xCE_Arg0"></string>
-    <string name="Command_CMD_0xD0_Arg0"></string>
-    <string name="Command_CMD_0xD1_Arg0"></string>
-    <string name="Command_CMD_0xD2_Arg0"></string>
-    <string name="Command_CMD_0xD3_Arg0"></string>
-    <string name="Command_CMD_0xD4_Arg0"></string>
-    <string name="Command_CMD_0xD5_Arg0"></string>
-    <string name="Command_CMD_0xD6_Arg0"></string>
+    <string name="Command_CMD_0xC1_Arg0">Token</string>
+    <string name="Command_CMD_0xC1_Arg0_Message">8 bytes,參數由程式管理</string>
+    <string name="Command_CMD_0xD1_Arg0">鎖體名稱</string>
+    <string name="Command_CMD_0xD1_Arg0_Message">1 ~ 20 Byte</string>
+    <string name="Command_CMD_0xD3_Arg0">TimeStamp (Unix)</string>
+    <string name="Command_CMD_0xD3_Arg0_Message">auto convert to uint32_t Little-endian</string>
+
+    <string name="Command_CMD_0xD5_Arg0">鎖體方向</string>
+    <string name="Command_CMD_0xD5_Arg1">聲音</string>
+    <string name="Command_CMD_0xD5_Arg2">假期模式</string>
+    <string name="Command_CMD_0xD5_Arg3">自動上鎖</string>
+    <string name="Command_CMD_0xD5_Arg4">自動上鎖時間</string>
+    <string name="Command_CMD_0xD5_Arg4_Message">10~99</string>
     <string name="Command_CMD_0xD7_Arg0">設定鎖體狀態</string>
-    <string name="Command_CMD_0xE0_Arg0"></string>
-    <string name="Command_CMD_0xE1_Arg0"></string>
-    <string name="Command_CMD_0xE2_Arg0"></string>
-    <string name="Command_CMD_0xE3_Arg0"></string>
-    <string name="Command_CMD_0xE4_Arg0"></string>
-    <string name="Command_CMD_0xE5_Arg0"></string>
-    <string name="Command_CMD_0xE6_Arg0"></string>
-    <string name="Command_CMD_0xE7_Arg0"></string>
-    <string name="Command_CMD_0xE8_Arg0"></string>
-    <string name="Command_CMD_0xE9_Arg0"></string>
-    <string name="Command_CMD_0xEA_Arg0"></string>
-    <string name="Command_CMD_0xEB_Arg0"></string>
-    <string name="Command_CMD_0xEC_Arg0">PinCode Index</string>
+    <string name="Command_CMD_0xE1_Arg0">Index</string>
+    <string name="Command_CMD_0xE1_Arg0_Message">0 ~ 249</string>
+    <string name="Command_CMD_0xE2_Arg0">Count</string>
+    <string name="Command_CMD_0xE2_Arg0_Message">1 ~ 250</string>
+    <string name="Command_CMD_0xE5_Arg0">Index</string>
+    <string name="Command_CMD_0xE5_Arg0_Message">0 ~ 9</string>
+    <string name="Command_CMD_0xE6_Arg0">Name</string>
+    <string name="Command_CMD_0xE6_Arg0_Message">1 ~ 20 Byte</string>
+    <string name="Command_CMD_0xE7_Arg0">Index</string>
+    <string name="Command_CMD_0xE7_Arg0_Message">0 ~ 9</string>
+    <string name="Command_CMD_0xE7_Arg1">Name</string>
+    <string name="Command_CMD_0xE7_Arg1_Message">1 ~ 20 Byte</string>
+    <string name="Command_CMD_0xE8_Arg0">Index</string>
+    <string name="Command_CMD_0xE8_Arg0_Message">0 ~ 9</string>
+    <string name="Command_CMD_0xEB_Arg0">Index</string>
+    <string name="Command_CMD_0xEB_Arg0_Message">0 ~ 200</string>
+
+    <string name="Command_CMD_0xEC_Arg0">Index</string>
     <string name="Command_CMD_0xEC_Arg0_Message">0 ~ 200</string>
-    <string name="Command_CMD_0xED_Arg0"></string>
-    <string name="Command_CMD_0xEE_Arg0"></string>
+    <string name="Command_CMD_0xEC_Arg1">Enable</string>
+    <string name="Command_CMD_0xEC_Arg2">PinCode</string>
+    <string name="Command_CMD_0xEC_Arg2_Message">4 digital ~ 6 digital</string>
+    <string name="Command_CMD_0xEC_Arg3">Schedule</string>
+    <string name="Command_CMD_0xEC_Arg4">Name</string>
+    <string name="Command_CMD_0xEC_Arg4_Message">1 ~ 20 Byte</string>
+
+    <string name="Command_CMD_0xEE_Arg0">Index</string>
+    <string name="Command_CMD_0xEE_Arg0_Message">0 ~ 200</string>
+
     <string name="Command_CMD_0xEF_Arg0"></string>
 </resources>
