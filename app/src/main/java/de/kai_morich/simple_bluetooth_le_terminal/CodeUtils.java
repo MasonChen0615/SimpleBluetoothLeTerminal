@@ -9,6 +9,7 @@ import java.nio.ByteOrder;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Random;
 
@@ -144,6 +145,24 @@ public class CodeUtils {
         * 刪除 PinCode
         */
         public static final byte DeletePinCode = (byte) 0xEE;
+        /**
+         * Require setting PinCode
+         */
+        public static final byte HaveMangerPinCode = (byte) 0xEF;
+
+
+        /**
+         * Test tool
+         */
+        public static final byte ToolGetAllToken = (byte) 0x01;
+        public static final byte ToolGetAllPinCode = (byte) 0x02;
+        public static final byte ToolGetAllEnablePinCode = (byte) 0x03;
+        public static final byte ToolAutoConnect = (byte) 0x04;
+
+        public static Date convertDate(int timestamp){
+                long my_timestamp = ((long)timestamp) * ((long)1000);
+                return new Date( my_timestamp );
+        }
 
         public static String encodeBase64(String data){
                 return Base64.encodeToString(data.getBytes(), Base64.DEFAULT);
@@ -197,7 +216,7 @@ public class CodeUtils {
                         } else if (count == 2) {
                                 command = b;
                         } else if (count == 3) {
-                                command_len = b;
+                                command_len = b & 0xff;
                                 if (data.length < command_len) {
                                         //some receive error in here.
                                         return new SunionCommandPayload((byte)0x00,0,new byte[]{},0);
@@ -351,9 +370,10 @@ public class CodeUtils {
                 return new byte[]{};
         }
 
+        private static final byte DELIMITER = (byte) '\n';
         public static Boolean isBytesCanRead(byte[] data){
                 for(byte b : data){
-                        if ( b < (byte)0x20 || b > (byte)0x7E){
+                        if ( ( b < (byte)0x20 || b > (byte)0x7E ) && b != DELIMITER){
                                 return false;
                         }
                 }

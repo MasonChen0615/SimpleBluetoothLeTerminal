@@ -21,16 +21,11 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.TimeZone;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -55,6 +50,13 @@ public class SerialService extends Service implements SerialListener {
     private int retry_wait = 0;
     private int command_iv = 1;
 
+    private int lock_log_current_number = -1;
+    private SunionTokenStatus[] storage_token = new SunionTokenStatus[10];
+    private Boolean storage_token_isset = false;
+    private SunionPincodeStatus[] storage_pincode = new SunionPincodeStatus[250];
+    private Boolean storage_pincode_isset = false;
+    private Boolean storage_pincode_admin_require = false;
+
     class SerialBinder extends Binder {
         SerialService getService() { return SerialService.this; }
     }
@@ -76,6 +78,10 @@ public class SerialService extends Service implements SerialListener {
     private SerialSocket socket;
     private SerialListener listener;
     private boolean connected;
+
+    public void killWatchRead(){
+        socket.killWatchRead();
+    }
 
     /**
      * Lifecylce
@@ -260,13 +266,13 @@ public class SerialService extends Service implements SerialListener {
                 if (listener != null) {
                     mainLooper.post(() -> {
                         if (listener != null) { //Run command logic in here
-                            if ((data.length % 16) == 0){
+                            if ((data.length % 16) == 0 && !socket.checkWatchRead()){
                                 byte[] decode = CodeUtils.decodeAES(getConnectionAESKey(),CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small, data);
                                 listener.onSerialRead(decode);
                                 sunionCommandHandler(data);
                             }else{
                                 listener.onSerialRead(data);
-                                printMessage("wait command");
+                                //printMessage("wait command");
                             }
                         } else {
                             queue1.add(new QueueItem(QueueType.Read, data, null));
@@ -454,6 +460,78 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    public void setLockLogCurrentNumber(int count){
+        synchronized (this) {
+            lock_log_current_number = count;
+        }
+    }
+
+    public int getLockLogCurrentNumber(){
+        synchronized (this) {
+            return lock_log_current_number;
+        }
+    }
+
+    public void setLockStorageToken(int index , SunionTokenStatus s_token){
+        synchronized (this) {
+            storage_token[index] = s_token;
+        }
+    }
+
+    public SunionTokenStatus getLockStorageToken(int index){
+        synchronized (this) {
+            return storage_token[index];
+        }
+    }
+
+    public void setLockStorageTokenISSet(Boolean isset){
+        synchronized (this) {
+            storage_token_isset = isset;
+        }
+    }
+
+    public Boolean getLockStorageTokenISSet(){
+        synchronized (this) {
+            return storage_token_isset;
+        }
+    }
+
+    public void setLockStoragePincode(int index , SunionPincodeStatus pincode){
+        synchronized (this) {
+            storage_pincode[index] = pincode;
+        }
+    }
+
+    public SunionPincodeStatus getLockStoragePincode(int index){
+        synchronized (this) {
+            return storage_pincode[index];
+        }
+    }
+
+    public void setLockStoragePincodeISSet(Boolean isset){
+        synchronized (this) {
+            storage_pincode_isset = isset;
+        }
+    }
+
+    public Boolean getLockStoragePincodeISSet(){
+        synchronized (this) {
+            return storage_pincode_isset;
+        }
+    }
+
+    public void setLockStoragePincodeAdminRequire(Boolean require){
+        synchronized (this) {
+            storage_pincode_admin_require = require;
+        }
+    }
+
+    public Boolean getLockStoragePincodeAdminRequire(){
+        synchronized (this) {
+            return storage_pincode_admin_require;
+        }
+    }
+
     public void printMessage(String message){
         String mymessage = Constants.EXCHANGE_MESSAGE_PREFIX + message + Constants.EXCHANGE_MESSAGE_PREFIX;
         listener.onSerialRead(message.getBytes());
@@ -464,6 +542,11 @@ public class SerialService extends Service implements SerialListener {
         listener.onSerialRead(mytoken.getBytes());
     }
 
+    public void exchangeTag(String tag){
+        String mytag = tag + "TAG" + tag;
+        listener.onSerialRead(mytag.getBytes());
+    }
+
     public void exchangeData(String tag, String data){
         String mybase64 = Constants.EXCHANGE_DATA_PREFIX + tag + CodeUtils.encodeBase64(data) + tag + Constants.EXCHANGE_DATA_PREFIX;
         listener.onSerialRead(mybase64.getBytes());
@@ -472,6 +555,20 @@ public class SerialService extends Service implements SerialListener {
     private Boolean checkCommandIncome(SunionCommandPayload commandPackage , byte target){
         if (commandPackage.getCommand() == target) {
             return true;
+        } else if (commandPackage.getCommand() == CodeUtils.HaveMangerPinCode) {
+            byte[] payload = commandPackage.getData();
+            if (payload.length == 1) {
+                if (payload[0] == (byte) 0x01) {
+                    setLockStoragePincodeAdminRequire(true);
+                    printMessage(Constants.CMD_NAME_0xEF + " need set admin pincode.");
+                } else {
+                    setLockStoragePincodeAdminRequire(false);
+                }
+            } else {
+                printMessage(Constants.CMD_NAME_0xEF + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+            }
+            resetCommandState();
+            return false;
         } else {
             if (incrRetry() > CodeUtils.Retry){
                 resetCommandState();
@@ -646,12 +743,8 @@ public class SerialService extends Service implements SerialListener {
                     byte[] payload = commandPackage.getData();
                     if (payload.length == 4) {
                         int timestamp = CodeUtils.littleEndianToInt(payload);
-                        Calendar cal = Calendar.getInstance();
-                        TimeZone tz = cal.getTimeZone();
-                        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-                        sdf.setTimeZone(tz);
-                        String localTime = sdf.format(new Date(timestamp * 1000));
-                        printMessage(Constants.CMD_NAME_0xD2 + " timestamp is " + timestamp  + " convert to localtime " + localTime);
+                        Date time = CodeUtils.convertDate(timestamp);
+                        printMessage(Constants.CMD_NAME_0xD2 + " timestamp is " + timestamp  + " convert to localtime " + time.toString());
                     } else {
                         printMessage(Constants.CMD_NAME_0xD2 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
                     }
@@ -726,7 +819,7 @@ public class SerialService extends Service implements SerialListener {
 //                    8	1	電量警告 2:危險, 1:弱電, 0:正常
 //                    9 ~ 12	4	TimeStamp (Unix)
                     byte[] payload = commandPackage.getData();
-                    if (payload.length == 6) {
+                    if (payload.length == 12) {
                         printMessage(Constants.CMD_NAME_0xD6 + " status report start");
                         printMessage("lock status:" + CodeUtils.bytesToHex(new byte[]{payload[0]}));
                         printMessage("keypress beep:" + CodeUtils.bytesToHex(new byte[]{payload[1]}));
@@ -756,7 +849,7 @@ public class SerialService extends Service implements SerialListener {
 //                    8	1	電量警告 2:危險, 1:弱電, 0:正常
 //                    9 ~ 12	4	TimeStamp (Unix)
                     byte[] payload = commandPackage.getData();
-                    if (payload.length == 6) {
+                    if (payload.length == 12) {
                         printMessage(Constants.CMD_NAME_0xD7 + " status report start");
                         printMessage("lock status:" + CodeUtils.bytesToHex(new byte[]{payload[0]}));
                         printMessage("keypress beep:" + CodeUtils.bytesToHex(new byte[]{payload[1]}));
@@ -779,15 +872,9 @@ public class SerialService extends Service implements SerialListener {
                     byte[] payload = commandPackage.getData();
                     if (payload.length == 1) {
                         printMessage(Constants.CMD_NAME_0xE0 + " allow , history size :" + CodeUtils.bytesToHex( new byte[]{payload[0]}));
-                        JSONObject json = new JSONObject();
-                        try {
-                            int i2 = payload[0] & 0xFF;  // default byte in java is sign value , but our byte are un-sign , so we need convert it with 0xff.
-                            json.put(Constants.CMD_NAME_0xE0, i2);
-                            String jsonStr = json.toString();
-                            exchangeData(Constants.EXCHANGE_DATA_0xE0_PREFIX,jsonStr);
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
+                        int i2 = payload[0] & 0xFF;  // default byte in java is sign value , but our byte are un-sign , so we need convert it with 0xff.
+                        setLockLogCurrentNumber(i2);
+                        exchangeTag(Constants.EXCHANGE_TAG_0xE0_PREFIX);
                     } else {
                         printMessage(Constants.CMD_NAME_0xE0 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
                     }
@@ -812,24 +899,288 @@ public class SerialService extends Service implements SerialListener {
                 }
                 break;
             case CodeUtils.DeleteLog:
+                if (checkCommandIncome(commandPackage,CodeUtils.DeleteLog)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xE2 + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xE2 + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xE2 + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xE2 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.InquireTokenArray:
+                if (checkCommandIncome(commandPackage,CodeUtils.InquireTokenArray)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 10) {
+                        printMessage(Constants.CMD_NAME_0xE4 + " status report start");
+                        for(int i = 0 ; i < 10 ; i++){
+                            printMessage("Token[" + i + "] status:" + CodeUtils.bytesToHex(new byte[]{payload[i]}));
+                            setLockStorageToken(i,new SunionTokenStatus((payload[i] == ((byte) 0x01)) ? true : false));
+                        }
+                        setLockStorageTokenISSet(true);
+                        printMessage(Constants.CMD_NAME_0xE4 + " status report end");
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xE4 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
+                break;
+            case CodeUtils.InquireToken:
+                if (checkCommandIncome(commandPackage,CodeUtils.InquireToken)){
+                    byte[] payload = commandPackage.getData();
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
+                    if (payload.length >= 10) {
+//                        1	1	是否可用 1:可用, 0:不可用
+//                        2	1	是否是永久 Token 1:永久, 0:一次性
+//                        3 ~10	8	Token
+//                        11 ~	(最多 20 Byte)	Name
+                        Boolean enable = (payload[0] == ((byte) 0x01)) ? true : false;
+                        Boolean once_use = (payload[1] == ((byte) 0x00)) ? true : false;
+                        byte[] token = new byte[]{payload[2],payload[3],payload[4],payload[5],payload[6],payload[7],payload[8],payload[9]};
+                        byte[] name = new byte[payload.length - 10];
+                        for(int i = 10 ; i < payload.length ; i++ ){
+                            name[i-10] = payload[i];
+                        }
+                        if (index >= 0 && index < 10){
+                            setLockStorageToken(
+                                    index,
+                                    new SunionTokenStatus(
+                                            enable,
+                                            once_use,
+                                            token,
+                                            name
+                                    )
+                            );
+                        }
+                        printMessage(Constants.CMD_NAME_0xE5 + " status report start");
+                        printMessage( "enable:" + ( enable ? "true" : "false" ) );
+                        printMessage( "once_use:" + ( once_use ? "true" : "false" ));
+                        printMessage( "token:" + CodeUtils.bytesToHex(token));
+                        printMessage( "name:" + CodeUtils.bytesToHex(name));
+                        printMessage(Constants.CMD_NAME_0xE5 + " status report end");
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xE5 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.NewOnceToken:
+                if (checkCommandIncome(commandPackage,CodeUtils.NewOnceToken)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 10) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xE6 + " allow");
+                            int i2 = payload[1] & 0xFF;
+                            byte[] token = new byte[]{payload[2],payload[3],payload[4],payload[5],payload[6],payload[7],payload[8],payload[9]};
+                            if (i2 >= 0 && i2 < 10) {
+                                setLockStorageToken(
+                                        i2,
+                                        new SunionTokenStatus(
+                                                true,
+                                                true,
+                                                token,
+                                                getCurrentCommandStep().getBytes()
+                                        )
+                                );
+                                setLockStorageTokenISSet(false);
+                            }
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xE6 + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xE6 + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xE6 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.ModifyToken:
+                if (checkCommandIncome(commandPackage,CodeUtils.ModifyToken)){
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length >= 10) {
+//                        1	1	是否可用 1:可用, 0:不可用
+//                        2	1	是否是永久 Token 1:永久, 0:一次性
+//                        3 ~10	8	Token
+//                        11 ~	(最多 20 Byte)	Name
+                        Boolean enable = (payload[0] == ((byte) 0x01)) ? true : false;
+                        Boolean once_use = (payload[1] == ((byte) 0x00)) ? true : false;
+                        byte[] token = new byte[]{payload[2],payload[3],payload[4],payload[5],payload[6],payload[7],payload[8],payload[9]};
+                        byte[] name = new byte[payload.length - 10];
+                        for(int i = 10 ; i < payload.length ; i++ ){
+                            name[i-10] = payload[i];
+                        }
+                        if (index >= 0 && index < 10){
+                            setLockStorageToken(
+                                    index,
+                                    new SunionTokenStatus(
+                                            enable,
+                                            once_use,
+                                            token,
+                                            name
+                                    )
+                            );
+                        }
+                        printMessage(Constants.CMD_NAME_0xE7 + " status report start");
+                        printMessage( "enable:" + ( enable ? "true" : "false" ) );
+                        printMessage( "once_use:" + ( once_use ? "true" : "false" ));
+                        printMessage( "token:" + CodeUtils.bytesToHex(token));
+                        printMessage( "name:" + CodeUtils.bytesToHex(name));
+                        printMessage(Constants.CMD_NAME_0xE7 + " status report end");
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xE7 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.DeleteToken:
+                if (checkCommandIncome(commandPackage,CodeUtils.DeleteToken)){
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xE8 + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xE8 + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xE8 + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xE8 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.InquirePinCodeArray:
+                if (checkCommandIncome(commandPackage,CodeUtils.InquirePinCodeArray)){
+                    byte[] payload = commandPackage.getData();
+                    byte[] check_enable = new byte[]{(byte)0x01, (byte)0x02, (byte)0x04, (byte)0x08, (byte)0x10, (byte)0x20, (byte)0x40, (byte)0x80};
+                    if (payload.length == 26) {
+                        printMessage(Constants.CMD_NAME_0xEA + " status report start");
+                        for(int i = 0 ; i < 26 ; i++){
+                            int count  = 0;
+                            for (byte check : check_enable) {
+                                if ( (payload[i] & check) == check ) {
+                                    int index = (i * 8 + count);
+                                    setLockStoragePincode(index,new SunionPincodeStatus(true));
+                                    printMessage(Constants.CMD_NAME_0xEA + " PinCode[" + index + "] is enable" );
+                                }
+                                count++;
+                            }
+                        }
+                        setLockStoragePincodeISSet(true);
+                        printMessage(Constants.CMD_NAME_0xEA + " status report end");
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xEA + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.InquirePinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.InquirePinCode)){
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length >= 14) {
+                        printMessage(Constants.CMD_NAME_0xEB + " status report start");
+                        try {
+                            SunionPincodeStatus pincode = SunionPincodeStatus.decodePincodePayload(payload);
+                            setLockStoragePincode(index,pincode);
+                            printMessage(Constants.CMD_NAME_0xEB + " PinCode[" + index + "] data:\n" + pincode.toString() );
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            printMessage(Constants.CMD_NAME_0xEB + " PinCode[" + index + "] data decode fail got message " + e.getMessage());
+                        }
+                        printMessage(Constants.CMD_NAME_0xEB + " status report end");
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xEB + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.NewPinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.NewPinCode)){
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xEC + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xEC + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xEC + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xEC + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.ModifyPinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.ModifyPinCode)){
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xED + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xED + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xED + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xED + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             case CodeUtils.DeletePinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.DeletePinCode)){
+                    int index = Integer.parseInt(getCurrentCommandStep());
+                    printMessage( "index:" + index );
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xEE + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xEE + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xEE + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xEE + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
+                break;
+            case CodeUtils.HaveMangerPinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.HaveMangerPinCode)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xEF + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xEF + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xEF + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xEF + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
                 break;
             default:
                 if (commandPackage.getCommand() == CodeUtils.InquireLockState) {  // default action.
@@ -842,7 +1193,7 @@ public class SerialService extends Service implements SerialListener {
                         printMessage("state machine default : " + "Deadbolt state is unknown");
                     }
                 }
-                listener.onSerialRead("wait command".getBytes());
+//                listener.onSerialRead("wait command".getBytes());
                 // not to do.
                 break;
         }

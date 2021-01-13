@@ -2,6 +2,16 @@
 <menu xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:android="http://schemas.android.com/apk/res/android">
     <item
+        android:id="@+id/reconnect"
+        android:icon="@drawable/ic_reflash"
+        android:title="Reconnect"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/disconnect"
+        android:icon="@drawable/ic_disconnect"
+        android:title="Disconnect"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/clear"
         android:icon="@drawable/ic_delete_white_24dp"
         android:title="Clear"
