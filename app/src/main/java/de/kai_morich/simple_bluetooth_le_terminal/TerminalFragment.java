@@ -1247,17 +1247,21 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     public void run() {
                     try {
                         int count = 0;
-//                        if (count > Constants.CONNECT_RETRY){
-//                            status("connection retry over " + Constants.CONNECT_RETRY);
-//                            sync_disconnect();
-//                        }
+                        if (Constants.AUTO_RETRY_CONNECTION) {
+                            if (count > Constants.CONNECT_RETRY){
+                                status("connection retry over " + Constants.CONNECT_RETRY);
+                                sync_disconnect();
+                            }
+                        }
                         while(connected == Connected.Pending){
                             sleep(5000);
                             if (connected == Connected.Pending) {
                                 status("connection time >" + (5 * (count+1)) + " sec");
                                 count++;
-//                                sync_disconnect();
-//                                sync_connect();
+                                if (Constants.AUTO_RETRY_CONNECTION) {
+                                    sync_disconnect();
+                                    sync_connect();
+                                }
                             } else {
                                 break;
                             }
