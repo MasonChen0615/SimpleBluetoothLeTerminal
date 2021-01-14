@@ -2,10 +2,12 @@ package de.kai_morich.simple_bluetooth_le_terminal;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.TimePickerDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
@@ -33,6 +35,7 @@ import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.TimePicker;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -43,7 +46,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Random;
 
@@ -51,6 +56,7 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionControlStatus;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionLockStatus;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionPincodeSchedule;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionPincodeStatus;
@@ -89,8 +95,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private int storage_token_index = 0;
     private int storage_pincode_index = 0;
     ArrayList<HashMap<String, String>> leaders;
+    private SunionControlStatus command_args = new SunionControlStatus();
 
     private int wait_reconnection_delay = 0;
+    private Boolean wait_connection_counter = false;
+
+
 
     synchronized private int getReconnectionDelay(){
         return wait_reconnection_delay;
@@ -98,6 +108,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     synchronized private void setReconnectionDelay(int delay){
         wait_reconnection_delay = delay;
+    }
+
+    synchronized private void setWaitConnectionCounter(Boolean enable){
+        wait_connection_counter = enable;
+    }
+
+    synchronized private Boolean getWaitConnectionCounter(){
+        return wait_connection_counter;
     }
 
     /*
@@ -172,6 +190,131 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         service = null;
     }
 
+    private void scheduleDialogSeek(){
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle("Schedule type")
+                .setSingleChoiceItems(SunionPincodeSchedule.Schedule_NAME_GROUP, 0, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        popNotice(SunionPincodeSchedule.Schedule_NAME_GROUP[which]);
+                    }
+                }).setPositiveButton("Next", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+        builder.create().show();
+    }
+
+    private void scheduleDialogWeekTimeRangeEnd(){
+        Calendar mCalendar = Calendar.getInstance();
+        TimePickerDialog pickerDialog = new TimePickerDialog(getActivity(), new TimePickerDialog.OnTimeSetListener() {
+            @Override
+            public void onTimeSet(TimePicker arg0, int hour, int minite) {
+                mCalendar.set(Calendar.HOUR_OF_DAY, hour);//設定時間的另一種方式
+                mCalendar.set(Calendar.MINUTE, minite);
+                SimpleDateFormat format = new SimpleDateFormat("HH:mm");
+                popNotice("End to" + format.format(mCalendar.getTime()));
+                Log.i(Constants.DEBUG_TAG,CodeUtils.bytesToHex(new byte[]{SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime()))}));
+                command_args.schedule.setWeekTime(SunionPincodeSchedule.WEEK_TIME_END,SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime())));
+                command_args.schedule.encodePincodeSchedulePayload();
+                popNotice(command_args.schedule.toString());
+                Log.i(Constants.DEBUG_TAG,command_args.schedule.toString());
+            }
+        }, mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), true);
+        pickerDialog.setTitle("End to");
+        pickerDialog.show();
+    }
+
+    private void scheduleDialogWeekTimeRange(){
+        Calendar mCalendar = Calendar.getInstance();
+        TimePickerDialog pickerDialog = new TimePickerDialog(getActivity(), new TimePickerDialog.OnTimeSetListener() {
+            @Override
+            public void onTimeSet(TimePicker arg0, int hour, int minite) {
+                mCalendar.set(Calendar.HOUR_OF_DAY, hour);//設定時間的另一種方式
+                mCalendar.set(Calendar.MINUTE, minite);
+                SimpleDateFormat format = new SimpleDateFormat("HH:mm");
+                SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime()));
+                popNotice("Start from" + format.format(mCalendar.getTime()));
+                Log.i(Constants.DEBUG_TAG,CodeUtils.bytesToHex(new byte[]{SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime()))}));
+                command_args.schedule.setWeekTime(SunionPincodeSchedule.WEEK_TIME_START,SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime())));
+                command_args.schedule.encodePincodeSchedulePayload();
+                scheduleDialogWeekTimeRangeEnd();
+            }
+        }, mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), true);
+        pickerDialog.setTitle("Start from");
+        pickerDialog.show();
+    }
+
+    private void scheduleDialogWeek(){
+        ArrayList<Integer> slist = new ArrayList();
+        boolean icount[] = new boolean[SunionPincodeSchedule.WEEK_NAME_GROUP.length];
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle("Week Setting")
+                .setMultiChoiceItems(SunionPincodeSchedule.WEEK_NAME_GROUP,icount, new DialogInterface.OnMultiChoiceClickListener() {
+                    @Override
+                    public void onClick(DialogInterface arg0, int arg1, boolean arg2) {
+                        if (arg2) {
+                            // If user select a item then add it in selected items
+                            slist.add(arg1);
+                        } else if (slist.contains(arg1)) {
+                            // if the item is already selected then remove it
+                            slist.remove(Integer.valueOf(arg1));
+                        }
+                    }
+                })
+                .setCancelable(false)
+                .setPositiveButton("Next", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String msg = "";
+                        byte weekday = 0x00;
+                        for (int i = 0; i < slist.size(); i++) {
+                            msg = msg + "\n" + SunionPincodeSchedule.WEEK_NAME_GROUP[slist.get(i)];
+                            weekday = (byte) (weekday | SunionPincodeSchedule.WEEK_GROUP[slist.get(i)]);
+                        }
+                        command_args.schedule.weekday = weekday;
+                        command_args.schedule.encodePincodeSchedulePayload();
+                        scheduleDialogWeekTimeRange();
+                        dialog.dismiss();
+                    }
+                });
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private void scheduleDialog0(){
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle("Schedule type")
+        .setSingleChoiceItems(SunionPincodeSchedule.Schedule_NAME_GROUP, 0, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                popNotice(SunionPincodeSchedule.Schedule_NAME_GROUP[which]);
+                command_args.schedule.schedule_type = SunionPincodeSchedule.Schedule_Type_GROUP[which];
+            }
+        }).setPositiveButton("Next", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                switch(command_args.schedule.schedule_type){
+                    case SunionPincodeSchedule.ALL_DAY:
+                    case SunionPincodeSchedule.ALL_DAY_DENY:
+                    case SunionPincodeSchedule.ONCE_USE:
+                        command_args.schedule.encodePincodeSchedulePayload();
+                        break;
+                    case SunionPincodeSchedule.WEEK_ROUTINE:
+                        scheduleDialogWeek();
+                        break;
+                    case SunionPincodeSchedule.SEEK_TIME:
+                        scheduleDialogSeek();
+                        break;
+                }
+                dialog.dismiss();
+            }
+        });
+        builder.create().show();
+    }
 
     private void initPopupWindow() {
         View view = LayoutInflater.from(this.getContext()) .inflate(R.layout.popupwindow_layout, null);
@@ -210,6 +353,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 new Spinner(this.getContext()),
                 new Spinner(this.getContext()),
         };
+        Button[] arg_button = {
+                new Button(this.getContext()),
+                new Button(this.getContext()),
+                new Button(this.getContext()),
+                new Button(this.getContext()),
+                new Button(this.getContext()),
+        };
         for(int i = 0; i < dy_mSpn.length ; i++){
             dy_mSpn[i].setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
                 @Override
@@ -225,14 +375,26 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     // TODO Auto-generated method stub
                 }
             });
+            arg_button[i].setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    Log.i(Constants.DEBUG_TAG,"command args call sub pop windows:");
+                }
+            });
             args_group[i].addView(dy_mSpn[i]);
+            args_group[i].addView(arg_button[i]);
         }
         for(int i = 0 ; i < 5 ; i++){
             command_arg[i].setVisibility(View.GONE);
+            command_arg[i].setTextSize(20);
             edit_command_arg[i].setVisibility(View.GONE);
             edit_command_arg[i].setText("");
             edit_command_arg[i].setInputType(InputType.TYPE_CLASS_TEXT);
+            edit_command_arg[i].setTextSize(20);
             dy_mSpn[i].setVisibility(View.GONE);
+            arg_button[i].setTextSize(20);
+            arg_button[i].setVisibility(View.GONE);
+            arg_button[i].setGravity(Gravity.CENTER);
         }
         String[] names;
         ArrayList<String> leaders_String;
@@ -440,6 +602,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 //Schedule
                 command_arg[3].setVisibility(View.VISIBLE);
                 command_arg[3].setText(R.string.Command_CMD_0xEC_Arg3);
+                arg_button[3].setVisibility(View.VISIBLE);
+                arg_button[3].setText(R.string.Command_CMD_0xEC_Arg3_Message);
+                arg_button[3].setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        scheduleDialog0();
+                        Log.i(Constants.DEBUG_TAG,"command args call sub pop windows");
+                    }
+                });
                 //Name
                 command_arg[4].setVisibility(View.VISIBLE);
                 command_arg[4].setText(R.string.Command_CMD_0xEC_Arg4);
@@ -515,11 +686,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             public boolean onLongClick(View view){ //實作onLongClick介面定義的方法
                 //        popupWindow
                 initPopupWindow();
+                //        popupWindow for SchedulePopupWindow when first popupWindow click Schedule button.
+
                 popupWindow.showAtLocation(view, Gravity.CENTER_HORIZONTAL, 0, 0);
                 Log.i(Constants.DEBUG_TAG,"onLongClick:" + leaders.get(current_command_select_position).get(NAME));
                 return true;
             }
         });
+
         command_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -1046,6 +1220,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         toast.show();
     }
 
+    synchronized private void sync_connect(){
+        getActivity().runOnUiThread(this::connect);
+    }
+
+    synchronized private void sync_disconnect(){
+        getActivity().runOnUiThread(this::disconnect);
+    }
+
     /*
      * Serial + UI
      */
@@ -1058,26 +1240,36 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             connected = Connected.Pending;
             SerialSocket socket = new SerialSocket(getActivity().getApplicationContext(), device);
             service.connect(socket);
-            Thread thread = new Thread() {
-                @Override
-                public void run() {
+            if(!getWaitConnectionCounter()){
+                setWaitConnectionCounter(true);
+                Thread thread = new Thread() {
+                    @Override
+                    public void run() {
                     try {
                         int count = 0;
+//                        if (count > Constants.CONNECT_RETRY){
+//                            status("connection retry over " + Constants.CONNECT_RETRY);
+//                            sync_disconnect();
+//                        }
                         while(connected == Connected.Pending){
                             sleep(5000);
                             if (connected == Connected.Pending) {
                                 status("connection time >" + (5 * (count+1)) + " sec");
                                 count++;
+//                                sync_disconnect();
+//                                sync_connect();
                             } else {
                                 break;
                             }
                         }
+                        setWaitConnectionCounter(false);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                }
-            };
-            thread.start();
+                    }
+                };
+                thread.start();
+            }
         } catch (Exception e) {
             onSerialConnectError(e);
         }

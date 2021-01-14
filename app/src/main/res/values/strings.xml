@@ -10,6 +10,9 @@
     <string name="pairing_request">PAIRING requested\n-> Perform pairing steps. Connect again</string>
     <string name="Command">Make...</string>
     <string name="CommandArgs">Command Args</string>
+    <string name="CommandArgSetting">Arg Setting</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
 
     <string name="Command_CMD_Common_None_Arg0">None</string>
     <string name="Command_CMD_Common_None_Arg0_Message">0 bytes</string>
@@ -53,6 +56,7 @@
     <string name="Command_CMD_0xEC_Arg2">PinCode</string>
     <string name="Command_CMD_0xEC_Arg2_Message">4 digital ~ 6 digital</string>
     <string name="Command_CMD_0xEC_Arg3">Schedule</string>
+    <string name="Command_CMD_0xEC_Arg3_Message">Setting Schedule</string>
     <string name="Command_CMD_0xEC_Arg4">Name</string>
     <string name="Command_CMD_0xEC_Arg4_Message">1 ~ 20 Byte</string>
 
