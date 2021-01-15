@@ -2,6 +2,7 @@ package de.kai_morich.simple_bluetooth_le_terminal;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -10,6 +11,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.Editable;
@@ -30,6 +32,7 @@ import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
@@ -40,6 +43,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
 import org.json.JSONException;
@@ -190,21 +194,66 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         service = null;
     }
 
-    private void scheduleDialogSeek(){
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setTitle("Schedule type")
-                .setSingleChoiceItems(SunionPincodeSchedule.Schedule_NAME_GROUP, 0, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        popNotice(SunionPincodeSchedule.Schedule_NAME_GROUP[which]);
-                    }
-                }).setPositiveButton("Next", new DialogInterface.OnClickListener() {
+    private void scheduleDialogSeekEnd(){
+        Calendar mCalendar = Calendar.getInstance();
+        DatePickerDialog datePickerDialog = new DatePickerDialog(getActivity(), new DatePickerDialog.OnDateSetListener() {
             @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
+            public void onDateSet(DatePicker view, int year, int month, int dayOfMonth){
+                mCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                mCalendar.set(Calendar.MONTH, month);
+                mCalendar.set(Calendar.YEAR, year);
+                SimpleDateFormat format = new SimpleDateFormat("yyyy.MM.dd");
+                popNotice(getString(R.string.time_end) + format.format(mCalendar.getTime()));
+                TimePickerDialog pickerDialog = new TimePickerDialog(getActivity(), new TimePickerDialog.OnTimeSetListener() {
+                    @Override
+                    public void onTimeSet(TimePicker arg0, int hour, int minite) {
+                        mCalendar.set(Calendar.HOUR_OF_DAY, hour);
+                        mCalendar.set(Calendar.MINUTE, minite);
+                        SimpleDateFormat format = new SimpleDateFormat("HH:mm");
+                        popNotice(getString(R.string.time_end) + format.format(mCalendar.getTime()));
+                        command_args.schedule.seektime_end =  (int) (mCalendar.getTimeInMillis() / 1000);
+                        command_args.schedule.encodePincodeSchedulePayload();
+                        popNotice(command_args.schedule.toString());
+                        Log.i(Constants.DEBUG_TAG,command_args.schedule.toString());
+                    }
+                }, mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), true);
+                pickerDialog.setTitle(getString(R.string.time_end));
+                pickerDialog.show();
             }
-        });
-        builder.create().show();
+        }, mCalendar.get(Calendar.YEAR),  mCalendar.get(Calendar.MONTH),  mCalendar.get(Calendar.DAY_OF_MONTH));
+        datePickerDialog.setTitle(getString(R.string.time_end));
+        datePickerDialog.show();
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    private void scheduleDialogSeek(){
+        Calendar mCalendar = Calendar.getInstance();
+        DatePickerDialog datePickerDialog = new DatePickerDialog(getActivity(), new DatePickerDialog.OnDateSetListener() {
+            @Override
+            public void onDateSet(DatePicker view, int year, int month, int dayOfMonth){
+                mCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                mCalendar.set(Calendar.MONTH, month);
+                mCalendar.set(Calendar.YEAR, year);
+                SimpleDateFormat format = new SimpleDateFormat("yyyy.MM.dd");
+                popNotice(getString(R.string.time_start) + format.format(mCalendar.getTime()));
+                TimePickerDialog pickerDialog = new TimePickerDialog(getActivity(), new TimePickerDialog.OnTimeSetListener() {
+                    @Override
+                    public void onTimeSet(TimePicker arg0, int hour, int minite) {
+                        mCalendar.set(Calendar.HOUR_OF_DAY, hour);//設定時間的另一種方式
+                        mCalendar.set(Calendar.MINUTE, minite);
+                        SimpleDateFormat format = new SimpleDateFormat("HH:mm");
+                        popNotice(getString(R.string.time_start) + format.format(mCalendar.getTime()));
+                        command_args.schedule.seektime_start =  (int) (mCalendar.getTimeInMillis() / 1000);
+                        command_args.schedule.encodePincodeSchedulePayload();
+                        scheduleDialogSeekEnd();
+                    }
+                }, mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), true);
+                pickerDialog.setTitle(getString(R.string.time_start));
+                pickerDialog.show();
+            }
+        }, mCalendar.get(Calendar.YEAR),  mCalendar.get(Calendar.MONTH),  mCalendar.get(Calendar.DAY_OF_MONTH));
+        datePickerDialog.setTitle(getString(R.string.time_start));
+        datePickerDialog.show();
     }
 
     private void scheduleDialogWeekTimeRangeEnd(){
@@ -212,10 +261,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         TimePickerDialog pickerDialog = new TimePickerDialog(getActivity(), new TimePickerDialog.OnTimeSetListener() {
             @Override
             public void onTimeSet(TimePicker arg0, int hour, int minite) {
-                mCalendar.set(Calendar.HOUR_OF_DAY, hour);//設定時間的另一種方式
+                mCalendar.set(Calendar.HOUR_OF_DAY, hour);
                 mCalendar.set(Calendar.MINUTE, minite);
                 SimpleDateFormat format = new SimpleDateFormat("HH:mm");
-                popNotice("End to" + format.format(mCalendar.getTime()));
+                popNotice(getString(R.string.time_end) + format.format(mCalendar.getTime()));
                 Log.i(Constants.DEBUG_TAG,CodeUtils.bytesToHex(new byte[]{SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime()))}));
                 command_args.schedule.setWeekTime(SunionPincodeSchedule.WEEK_TIME_END,SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime())));
                 command_args.schedule.encodePincodeSchedulePayload();
@@ -223,7 +272,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 Log.i(Constants.DEBUG_TAG,command_args.schedule.toString());
             }
         }, mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), true);
-        pickerDialog.setTitle("End to");
+        pickerDialog.setTitle(getString(R.string.time_end));
         pickerDialog.show();
     }
 
@@ -232,18 +281,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         TimePickerDialog pickerDialog = new TimePickerDialog(getActivity(), new TimePickerDialog.OnTimeSetListener() {
             @Override
             public void onTimeSet(TimePicker arg0, int hour, int minite) {
-                mCalendar.set(Calendar.HOUR_OF_DAY, hour);//設定時間的另一種方式
+                mCalendar.set(Calendar.HOUR_OF_DAY, hour);
                 mCalendar.set(Calendar.MINUTE, minite);
                 SimpleDateFormat format = new SimpleDateFormat("HH:mm");
-                SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime()));
-                popNotice("Start from" + format.format(mCalendar.getTime()));
+                popNotice(getString(R.string.time_start) + format.format(mCalendar.getTime()));
                 Log.i(Constants.DEBUG_TAG,CodeUtils.bytesToHex(new byte[]{SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime()))}));
                 command_args.schedule.setWeekTime(SunionPincodeSchedule.WEEK_TIME_START,SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime())));
                 command_args.schedule.encodePincodeSchedulePayload();
                 scheduleDialogWeekTimeRangeEnd();
             }
         }, mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), true);
-        pickerDialog.setTitle("Start from");
+        pickerDialog.setTitle(getString(R.string.time_start));
         pickerDialog.show();
     }
 
@@ -286,15 +334,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void scheduleDialog0(){
+        int default_item = 0;
+        command_args.schedule.schedule_type = SunionPincodeSchedule.Schedule_Type_GROUP[default_item];
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle("Schedule type")
-        .setSingleChoiceItems(SunionPincodeSchedule.Schedule_NAME_GROUP, 0, new DialogInterface.OnClickListener() {
+        .setSingleChoiceItems(SunionPincodeSchedule.Schedule_NAME_GROUP, default_item, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                popNotice(SunionPincodeSchedule.Schedule_NAME_GROUP[which]);
                 command_args.schedule.schedule_type = SunionPincodeSchedule.Schedule_Type_GROUP[which];
             }
         }).setPositiveButton("Next", new DialogInterface.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.N)
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 switch(command_args.schedule.schedule_type){
