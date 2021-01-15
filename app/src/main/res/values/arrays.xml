@@ -70,6 +70,10 @@
         <item>EE</item>
         <item>EF</item>
     </string-array>
+    <string-array name="command_arg_common_boolean"> <!--<item>0xD7	設定鎖體狀態</item>-->
+        <item>開</item>
+        <item>關</item>
+    </string-array>
     <string-array name="command_arg_D7"> <!--<item>0xD7	設定鎖體狀態</item>-->
         <item>開</item>
         <item>關</item>

@@ -2,12 +2,16 @@ package de.kai_morich.simple_bluetooth_le_terminal;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.Editable;
@@ -28,22 +32,27 @@ import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.TimePicker;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Random;
 
@@ -51,6 +60,7 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionControlStatus;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionLockStatus;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionPincodeSchedule;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionPincodeStatus;
@@ -89,8 +99,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private int storage_token_index = 0;
     private int storage_pincode_index = 0;
     ArrayList<HashMap<String, String>> leaders;
+    private SunionControlStatus command_args = new SunionControlStatus();
 
     private int wait_reconnection_delay = 0;
+    private Boolean wait_connection_counter = false;
+
+
 
     synchronized private int getReconnectionDelay(){
         return wait_reconnection_delay;
@@ -98,6 +112,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     synchronized private void setReconnectionDelay(int delay){
         wait_reconnection_delay = delay;
+    }
+
+    synchronized private void setWaitConnectionCounter(Boolean enable){
+        wait_connection_counter = enable;
+    }
+
+    synchronized private Boolean getWaitConnectionCounter(){
+        return wait_connection_counter;
     }
 
     /*
@@ -172,6 +194,178 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         service = null;
     }
 
+    private void scheduleDialogSeekEnd(){
+        Calendar mCalendar = Calendar.getInstance();
+        DatePickerDialog datePickerDialog = new DatePickerDialog(getActivity(), new DatePickerDialog.OnDateSetListener() {
+            @Override
+            public void onDateSet(DatePicker view, int year, int month, int dayOfMonth){
+                mCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                mCalendar.set(Calendar.MONTH, month);
+                mCalendar.set(Calendar.YEAR, year);
+                SimpleDateFormat format = new SimpleDateFormat("yyyy.MM.dd");
+                popNotice(getString(R.string.time_end) + format.format(mCalendar.getTime()));
+                TimePickerDialog pickerDialog = new TimePickerDialog(getActivity(), new TimePickerDialog.OnTimeSetListener() {
+                    @Override
+                    public void onTimeSet(TimePicker arg0, int hour, int minite) {
+                        mCalendar.set(Calendar.HOUR_OF_DAY, hour);
+                        mCalendar.set(Calendar.MINUTE, minite);
+                        SimpleDateFormat format = new SimpleDateFormat("HH:mm");
+                        popNotice(getString(R.string.time_end) + format.format(mCalendar.getTime()));
+                        command_args.schedule.seektime_end =  (int) (mCalendar.getTimeInMillis() / 1000);
+                        command_args.schedule.encodePincodeSchedulePayload();
+                        popNotice(command_args.schedule.toString());
+                        Log.i(Constants.DEBUG_TAG,command_args.schedule.toString());
+                    }
+                }, mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), true);
+                pickerDialog.setTitle(getString(R.string.time_end));
+                pickerDialog.show();
+            }
+        }, mCalendar.get(Calendar.YEAR),  mCalendar.get(Calendar.MONTH),  mCalendar.get(Calendar.DAY_OF_MONTH));
+        datePickerDialog.setTitle(getString(R.string.time_end));
+        datePickerDialog.show();
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    private void scheduleDialogSeek(){
+        Calendar mCalendar = Calendar.getInstance();
+        DatePickerDialog datePickerDialog = new DatePickerDialog(getActivity(), new DatePickerDialog.OnDateSetListener() {
+            @Override
+            public void onDateSet(DatePicker view, int year, int month, int dayOfMonth){
+                mCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                mCalendar.set(Calendar.MONTH, month);
+                mCalendar.set(Calendar.YEAR, year);
+                SimpleDateFormat format = new SimpleDateFormat("yyyy.MM.dd");
+                popNotice(getString(R.string.time_start) + format.format(mCalendar.getTime()));
+                TimePickerDialog pickerDialog = new TimePickerDialog(getActivity(), new TimePickerDialog.OnTimeSetListener() {
+                    @Override
+                    public void onTimeSet(TimePicker arg0, int hour, int minite) {
+                        mCalendar.set(Calendar.HOUR_OF_DAY, hour);//設定時間的另一種方式
+                        mCalendar.set(Calendar.MINUTE, minite);
+                        SimpleDateFormat format = new SimpleDateFormat("HH:mm");
+                        popNotice(getString(R.string.time_start) + format.format(mCalendar.getTime()));
+                        command_args.schedule.seektime_start =  (int) (mCalendar.getTimeInMillis() / 1000);
+                        command_args.schedule.encodePincodeSchedulePayload();
+                        scheduleDialogSeekEnd();
+                    }
+                }, mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), true);
+                pickerDialog.setTitle(getString(R.string.time_start));
+                pickerDialog.show();
+            }
+        }, mCalendar.get(Calendar.YEAR),  mCalendar.get(Calendar.MONTH),  mCalendar.get(Calendar.DAY_OF_MONTH));
+        datePickerDialog.setTitle(getString(R.string.time_start));
+        datePickerDialog.show();
+    }
+
+    private void scheduleDialogWeekTimeRangeEnd(){
+        Calendar mCalendar = Calendar.getInstance();
+        TimePickerDialog pickerDialog = new TimePickerDialog(getActivity(), new TimePickerDialog.OnTimeSetListener() {
+            @Override
+            public void onTimeSet(TimePicker arg0, int hour, int minite) {
+                mCalendar.set(Calendar.HOUR_OF_DAY, hour);
+                mCalendar.set(Calendar.MINUTE, minite);
+                SimpleDateFormat format = new SimpleDateFormat("HH:mm");
+                popNotice(getString(R.string.time_end) + format.format(mCalendar.getTime()));
+                Log.i(Constants.DEBUG_TAG,CodeUtils.bytesToHex(new byte[]{SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime()))}));
+                command_args.schedule.setWeekTime(SunionPincodeSchedule.WEEK_TIME_END,SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime())));
+                command_args.schedule.encodePincodeSchedulePayload();
+                popNotice(command_args.schedule.toString());
+                Log.i(Constants.DEBUG_TAG,command_args.schedule.toString());
+            }
+        }, mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), true);
+        pickerDialog.setTitle(getString(R.string.time_end));
+        pickerDialog.show();
+    }
+
+    private void scheduleDialogWeekTimeRange(){
+        Calendar mCalendar = Calendar.getInstance();
+        TimePickerDialog pickerDialog = new TimePickerDialog(getActivity(), new TimePickerDialog.OnTimeSetListener() {
+            @Override
+            public void onTimeSet(TimePicker arg0, int hour, int minite) {
+                mCalendar.set(Calendar.HOUR_OF_DAY, hour);
+                mCalendar.set(Calendar.MINUTE, minite);
+                SimpleDateFormat format = new SimpleDateFormat("HH:mm");
+                popNotice(getString(R.string.time_start) + format.format(mCalendar.getTime()));
+                Log.i(Constants.DEBUG_TAG,CodeUtils.bytesToHex(new byte[]{SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime()))}));
+                command_args.schedule.setWeekTime(SunionPincodeSchedule.WEEK_TIME_START,SunionPincodeSchedule.convertWeekTime(format.format(mCalendar.getTime())));
+                command_args.schedule.encodePincodeSchedulePayload();
+                scheduleDialogWeekTimeRangeEnd();
+            }
+        }, mCalendar.get(Calendar.HOUR_OF_DAY), mCalendar.get(Calendar.MINUTE), true);
+        pickerDialog.setTitle(getString(R.string.time_start));
+        pickerDialog.show();
+    }
+
+    private void scheduleDialogWeek(){
+        ArrayList<Integer> slist = new ArrayList();
+        boolean icount[] = new boolean[SunionPincodeSchedule.WEEK_NAME_GROUP.length];
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle("Week Setting")
+                .setMultiChoiceItems(SunionPincodeSchedule.WEEK_NAME_GROUP,icount, new DialogInterface.OnMultiChoiceClickListener() {
+                    @Override
+                    public void onClick(DialogInterface arg0, int arg1, boolean arg2) {
+                        if (arg2) {
+                            // If user select a item then add it in selected items
+                            slist.add(arg1);
+                        } else if (slist.contains(arg1)) {
+                            // if the item is already selected then remove it
+                            slist.remove(Integer.valueOf(arg1));
+                        }
+                    }
+                })
+                .setCancelable(false)
+                .setPositiveButton("Next", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String msg = "";
+                        byte weekday = 0x00;
+                        for (int i = 0; i < slist.size(); i++) {
+                            msg = msg + "\n" + SunionPincodeSchedule.WEEK_NAME_GROUP[slist.get(i)];
+                            weekday = (byte) (weekday | SunionPincodeSchedule.WEEK_GROUP[slist.get(i)]);
+                        }
+                        command_args.schedule.weekday = weekday;
+                        command_args.schedule.encodePincodeSchedulePayload();
+                        scheduleDialogWeekTimeRange();
+                        dialog.dismiss();
+                    }
+                });
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private void scheduleDialog0(){
+        int default_item = 0;
+        command_args.schedule.schedule_type = SunionPincodeSchedule.Schedule_Type_GROUP[default_item];
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle("Schedule type")
+        .setSingleChoiceItems(SunionPincodeSchedule.Schedule_NAME_GROUP, default_item, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                command_args.schedule.schedule_type = SunionPincodeSchedule.Schedule_Type_GROUP[which];
+            }
+        }).setPositiveButton("Next", new DialogInterface.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.N)
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                switch(command_args.schedule.schedule_type){
+                    case SunionPincodeSchedule.ALL_DAY:
+                    case SunionPincodeSchedule.ALL_DAY_DENY:
+                    case SunionPincodeSchedule.ONCE_USE:
+                        command_args.schedule.encodePincodeSchedulePayload();
+                        break;
+                    case SunionPincodeSchedule.WEEK_ROUTINE:
+                        scheduleDialogWeek();
+                        break;
+                    case SunionPincodeSchedule.SEEK_TIME:
+                        scheduleDialogSeek();
+                        break;
+                }
+                dialog.dismiss();
+            }
+        });
+        builder.create().show();
+    }
+
     private void initPopupWindow() {
         View view = LayoutInflater.from(this.getContext()) .inflate(R.layout.popupwindow_layout, null);
         popupWindow = new PopupWindow(view); popupWindow.setWidth(ViewGroup.LayoutParams.WRAP_CONTENT); popupWindow.setHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -209,6 +403,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 new Spinner(this.getContext()),
                 new Spinner(this.getContext()),
         };
+        Button[] arg_button = {
+                new Button(this.getContext()),
+                new Button(this.getContext()),
+                new Button(this.getContext()),
+                new Button(this.getContext()),
+                new Button(this.getContext()),
+        };
         for(int i = 0; i < dy_mSpn.length ; i++){
             dy_mSpn[i].setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
                 @Override
@@ -224,15 +425,30 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     // TODO Auto-generated method stub
                 }
             });
+            arg_button[i].setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    Log.i(Constants.DEBUG_TAG,"command args call sub pop windows:");
+                }
+            });
             args_group[i].addView(dy_mSpn[i]);
+            args_group[i].addView(arg_button[i]);
         }
         for(int i = 0 ; i < 5 ; i++){
             command_arg[i].setVisibility(View.GONE);
+            command_arg[i].setTextSize(20);
             edit_command_arg[i].setVisibility(View.GONE);
             edit_command_arg[i].setText("");
             edit_command_arg[i].setInputType(InputType.TYPE_CLASS_TEXT);
+            edit_command_arg[i].setTextSize(20);
             dy_mSpn[i].setVisibility(View.GONE);
+            arg_button[i].setTextSize(20);
+            arg_button[i].setVisibility(View.GONE);
+            arg_button[i].setGravity(Gravity.CENTER);
         }
+        String[] names;
+        ArrayList<String> leaders_String;
+        ArrayAdapter<String> adapter_String;
         switch(current_command_select_position){
             case Constants.CMD_0xC0:
                 command_arg[0].setVisibility(View.VISIBLE);
@@ -242,75 +458,229 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xC1:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xC1_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xC1_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xCC:
-                break;
             case Constants.CMD_0xCE:
-                break;
             case Constants.CMD_0xD0:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xD1:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xD1_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xD1_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_TEXT);
                 break;
             case Constants.CMD_0xD2:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xD3:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xD3_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xD3_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xD4:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xD5:
+                names = getResources().getStringArray(R.array.command_arg_common_boolean);
+                leaders_String = new ArrayList<String>();
+                for(int i = 0; i < names.length; i++){
+                    leaders_String.add(names[i]);
+                }
+                for(int i = 0 ; i < 5 ; i++){
+                    command_arg[i].setVisibility(View.VISIBLE);
+                    if ( i < 4){
+                        adapter_String = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_String);
+                        adapter_String.setDropDownViewResource( R.layout.command_args_spinner_item);
+                        dy_mSpn[i].setAdapter(adapter_String);
+                        dy_mSpn[i].setVisibility(View.VISIBLE);
+                    }
+                }
+                command_arg[0].setText(R.string.Command_CMD_0xD5_Arg0);
+                command_arg[1].setText(R.string.Command_CMD_0xD5_Arg1);
+                command_arg[2].setText(R.string.Command_CMD_0xD5_Arg2);
+                command_arg[3].setText(R.string.Command_CMD_0xD5_Arg3);
+                command_arg[4].setText(R.string.Command_CMD_0xD5_Arg4);
+                edit_command_arg[4].setVisibility(View.VISIBLE);
+                edit_command_arg[4].setHint(R.string.Command_CMD_0xD5_Arg4_Message);
+                edit_command_arg[4].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xD6:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xD7:
                 command_arg[0].setVisibility(View.VISIBLE);
                 command_arg[0].setText(R.string.Command_CMD_0xD7_Arg0);
-                String[] names = getResources().getStringArray(R.array.command_arg_D7);
-                String[] creation = getResources().getStringArray(R.array.command_arg_D7);
-                ArrayList<String> leaders_D7 = new ArrayList<String>();
+                names = getResources().getStringArray(R.array.command_arg_D7);
+                leaders_String = new ArrayList<String>();
                 for(int i = 0; i < names.length; i++){
-                    leaders_D7.add(names[i]);
+                    leaders_String.add(names[i]);
                 }
-                ArrayAdapter<String> adapter = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_D7);
+                ArrayAdapter<String> adapter = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_String);
                 adapter.setDropDownViewResource( R.layout.command_args_spinner_item);
                 dy_mSpn[0].setAdapter(adapter);
                 dy_mSpn[0].setVisibility(View.VISIBLE);
                 break;
             case Constants.CMD_0xE0:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xE1:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE1_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE1_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xE2:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE2_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE2_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
-            case Constants.CMD_0xE3:
-                break;
+//            case Constants.CMD_0xE3:
+//                break;
             case Constants.CMD_0xE4:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xE5:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE5_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE5_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xE6:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE6_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE6_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_TEXT);
                 break;
             case Constants.CMD_0xE7:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE7_Arg0);
+                command_arg[0].setText(R.string.Command_CMD_0xE7_Arg1);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE7_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[1].setVisibility(View.VISIBLE);
+                edit_command_arg[1].setHint(R.string.Command_CMD_0xE7_Arg1_Message);
+                edit_command_arg[1].setInputType(InputType.TYPE_CLASS_TEXT);
                 break;
             case Constants.CMD_0xE8:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xE8_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xE8_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
-            case Constants.CMD_0xE9:
-                break;
+//            case Constants.CMD_0xE9:
+//                break;
             case Constants.CMD_0xEA:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xEB:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xEB_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xEB_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xEC:
+            case Constants.CMD_0xED:
+                //Index
                 command_arg[0].setVisibility(View.VISIBLE);
                 command_arg[0].setText(R.string.Command_CMD_0xEC_Arg0);
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xEC_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
-                break;
-            case Constants.CMD_0xED:
+                //Enable
+                command_arg[1].setVisibility(View.VISIBLE);
+                command_arg[1].setText(R.string.Command_CMD_0xEC_Arg1);
+                names = getResources().getStringArray(R.array.command_arg_common_boolean);
+                leaders_String = new ArrayList<String>();
+                for(int i = 0; i < names.length; i++){
+                    leaders_String.add(names[i]);
+                }
+                adapter_String = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_String);
+                adapter_String.setDropDownViewResource( R.layout.command_args_spinner_item);
+                dy_mSpn[1].setAdapter(adapter_String);
+                dy_mSpn[1].setVisibility(View.VISIBLE);
+                //PinCode
+                command_arg[2].setVisibility(View.VISIBLE);
+                command_arg[2].setText(R.string.Command_CMD_0xEC_Arg2);
+                edit_command_arg[2].setVisibility(View.VISIBLE);
+                edit_command_arg[2].setHint(R.string.Command_CMD_0xEC_Arg2_Message);
+                edit_command_arg[2].setInputType(InputType.TYPE_CLASS_NUMBER);
+                //Schedule
+                command_arg[3].setVisibility(View.VISIBLE);
+                command_arg[3].setText(R.string.Command_CMD_0xEC_Arg3);
+                arg_button[3].setVisibility(View.VISIBLE);
+                arg_button[3].setText(R.string.Command_CMD_0xEC_Arg3_Message);
+                arg_button[3].setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        scheduleDialog0();
+                        Log.i(Constants.DEBUG_TAG,"command args call sub pop windows");
+                    }
+                });
+                //Name
+                command_arg[4].setVisibility(View.VISIBLE);
+                command_arg[4].setText(R.string.Command_CMD_0xEC_Arg4);
+                edit_command_arg[4].setVisibility(View.VISIBLE);
+                edit_command_arg[4].setHint(R.string.Command_CMD_0xEC_Arg4_Message);
+                edit_command_arg[4].setInputType(InputType.TYPE_CLASS_TEXT);
                 break;
             case Constants.CMD_0xEE:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xEE_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xEE_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
             case Constants.CMD_0xEF:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             default:
                 break;
@@ -366,11 +736,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             public boolean onLongClick(View view){ //實作onLongClick介面定義的方法
                 //        popupWindow
                 initPopupWindow();
+                //        popupWindow for SchedulePopupWindow when first popupWindow click Schedule button.
+
                 popupWindow.showAtLocation(view, Gravity.CENTER_HORIZONTAL, 0, 0);
                 Log.i(Constants.DEBUG_TAG,"onLongClick:" + leaders.get(current_command_select_position).get(NAME));
                 return true;
             }
         });
+
         command_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -447,8 +820,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //                        5	1	自動上鎖時間 10~99
                         int random_autolock_delay = new Random().nextInt((99 - 10) + 1) + 10;
                         data[0] = SunionLockStatus.LOCK_STATUS_NOT_TO_DO;
-                        data[1] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
-                        data[2] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
+                        data[1] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;  // keypressbee
+//                        data[2] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;  // vacation mode
+                        data[2] = (byte)0x00;  // vacation mode
                         data[3] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
                         data[4] = (byte) random_autolock_delay;
                         String notice = "鎖體方向:忽視,";
@@ -875,9 +1249,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 @Override
                 public void run() {
                     try {
-                        for(int i = 0 ; i < 10 ; i++){
+                        for(int i = 0 ; i < Constants.CONNECT_RETRY_DELAY ; i++){
                             sleep(1000);
-                            setReconnectionDelay(9-i);
+                            setReconnectionDelay((Constants.CONNECT_RETRY_DELAY-1)-i);
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -896,6 +1270,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         toast.show();
     }
 
+    synchronized private void sync_connect(){
+        getActivity().runOnUiThread(this::connect);
+    }
+
+    synchronized private void sync_disconnect(){
+        getActivity().runOnUiThread(this::disconnect);
+    }
+
     /*
      * Serial + UI
      */
@@ -908,6 +1290,40 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             connected = Connected.Pending;
             SerialSocket socket = new SerialSocket(getActivity().getApplicationContext(), device);
             service.connect(socket);
+            if(!getWaitConnectionCounter()){
+                setWaitConnectionCounter(true);
+                Thread thread = new Thread() {
+                    @Override
+                    public void run() {
+                    try {
+                        int count = 0;
+                        if (Constants.AUTO_RETRY_CONNECTION) {
+                            if (count > Constants.CONNECT_RETRY){
+                                status("connection retry over " + Constants.CONNECT_RETRY);
+                                sync_disconnect();
+                            }
+                        }
+                        while(connected == Connected.Pending){
+                            sleep(5000);
+                            if (connected == Connected.Pending) {
+                                status("connection time >" + (5 * (count+1)) + " sec");
+                                count++;
+                                if (Constants.AUTO_RETRY_CONNECTION) {
+                                    sync_disconnect();
+                                    sync_connect();
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+                        setWaitConnectionCounter(false);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    }
+                };
+                thread.start();
+            }
         } catch (Exception e) {
             onSerialConnectError(e);
         }
@@ -976,30 +1392,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                     receiveText.append(spn);
                 } else if (s.indexOf(Constants.EXCHANGE_DATA_PREFIX) == 0) {
-//                    int prefix = Constants.EXCHANGE_MESSAGE_PREFIX.length();
-//                    String message = s.substring(prefix, s.length() - prefix);
-//                    if (message.indexOf(Constants.EXCHANGE_DATA_0xE0_PREFIX) == 0) {
-//                        int tag_prefix = Constants.EXCHANGE_DATA_0xE0_PREFIX.length();
-//                        String base64 = message.substring(tag_prefix, message.length() - tag_prefix);
-//                        try {
-//                            JSONObject json = new JSONObject(CodeUtils.decodeBase64(base64));
-//                            // try CodeUtils.InquireLogCount
-//                                int InquireLogCount = json.getInt(Constants.CMD_NAME_0xE0);
-//                                if (InquireLogCount >= 0) {
-//                                    current_get_log_index = InquireLogCount;
-//                                }
-//                        } catch (JSONException e) {
-//                            e.printStackTrace();
-//                        }
-//                    } else if (message.indexOf(Constants.EXCHANGE_DATA_0xE4_PREFIX) == 0) {
-//                        int tag_prefix = Constants.EXCHANGE_DATA_0xE4_PREFIX.length();
-//                    } else if (message.indexOf(Constants.EXCHANGE_DATA_0xEA_PREFIX) == 0) {
-//                        int tag_prefix = Constants.EXCHANGE_DATA_0xEA_PREFIX.length();
-//                    } else {
-//                        // skip
-//                    }
+                    // not need to do.
                 } else if (s.indexOf(Constants.EXCHANGE_DATA_0xE0_PREFIX) == 0) {
-//                    int prefix = Constants.EXCHANGE_DATA_0xE0_PREFIX.length();
                     // not need to do.
                 } else {
                     SpannableStringBuilder spn = new SpannableStringBuilder(s+'\n');

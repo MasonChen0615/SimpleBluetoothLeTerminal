@@ -1,5 +1,7 @@
 package de.kai_morich.simple_bluetooth_le_terminal.payload;
 
+import android.util.Log;
+
 import de.kai_morich.simple_bluetooth_le_terminal.CodeUtils;
 
 /**
@@ -25,6 +27,8 @@ public class SunionPincodeSchedule {
     public static final byte ONCE_USE = (byte) 0x4F;  // O
     public static final byte WEEK_ROUTINE = (byte) 0x57;  // W
     public static final byte SEEK_TIME = (byte) 0x53;  // S
+    public static final String[] Schedule_NAME_GROUP = new String[]{"ALL DAY" , "ALL DAY DENY" , "ONCE USE" , "WEEK ROUTINE" , "SEEK TIME"};
+    public static final byte[] Schedule_Type_GROUP = new byte[]{     ALL_DAY,    ALL_DAY_DENY,    ONCE_USE,    WEEK_ROUTINE,    SEEK_TIME };
 
     // only W can use, if not in W mode , WEEK DAY default value is WEEK_NOT_USE
 /**
@@ -56,12 +60,12 @@ public class SunionPincodeSchedule {
     public static final byte SEEK_TIME_NOT_USE = (byte) 0xAA;
 
     private byte[] row_schedule;
-    private byte schedule_type;
-    private byte weekday;
-    private byte weektime_start;
-    private byte weektime_end;
-    private int seektime_start;
-    private int seektime_end;
+    public byte schedule_type;
+    public byte weekday;
+    public byte weektime_start;
+    public byte weektime_end;
+    public int seektime_start;
+    public int seektime_end;
 
     public SunionPincodeSchedule(){}
     public SunionPincodeSchedule(byte schedule_type, byte weekday, byte weektime_start, byte weektime_end, int seektime_start, int seektime_end){
@@ -72,6 +76,19 @@ public class SunionPincodeSchedule {
         this.seektime_start = seektime_start;
         this.seektime_end = seektime_end;
         encodePincodeSchedulePayload();
+    }
+    /**
+     * convertWeekTime to 0 ~ 95 pick
+     * @param value HH:mm
+     */
+    public static byte convertWeekTime(String value){
+        byte weektime = 0x00;
+        if(value.length() == 5){
+            int h = Integer.parseInt(value.substring(0,2));
+            int m = Integer.parseInt(value.substring(3,5));
+            weektime = (byte) ((h * 4) + (m / 15));
+        }
+        return weektime;
     }
     public byte[] encodePincodeSchedulePayload(){
         this.row_schedule = new byte[12];
@@ -127,7 +144,7 @@ public class SunionPincodeSchedule {
         int count = 0;
         for (int i = 0 ; i < tmp.length ; i++){
             if((weekday & WEEK_GROUP[i]) == WEEK_GROUP[i] ){
-                tmp[i] = WEEK_GROUP[i];
+                tmp[count] = WEEK_GROUP[i];
                 count++;
             }
         }
@@ -169,6 +186,8 @@ public class SunionPincodeSchedule {
                 return (byte)0x00;
         }
     }
+
+
     public void setWeekTime(byte ent , byte value){
         switch(ent){
             case WEEK_TIME_START:

@@ -186,6 +186,7 @@ class SerialSocket extends BluetoothGattCallback {
         } else {
             Log.d(TAG, "connectGatt,LE");
             gatt = device.connectGatt(context, false, this, BluetoothDevice.TRANSPORT_LE);
+            gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH);
         }
         if (gatt == null)
             throw new IOException("connectGatt failed");

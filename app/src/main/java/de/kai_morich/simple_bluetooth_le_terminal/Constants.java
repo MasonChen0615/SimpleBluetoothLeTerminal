@@ -10,7 +10,8 @@ class Constants {
     // values have to be unique within each app
     static final int NOTIFY_MANAGER_START_FOREGROUND_SERVICE = 1001;
     static final String SELF_TEST = "TEST";
-    static final String DEBUG_TAG = "AAA";
+    public static final Boolean AUTO_RETRY_CONNECTION = false;
+    public static final String DEBUG_TAG = "AAA";
     static final String EXCHANGE_LOCKTOKEN_PREFIX = "@LOCKTOKEN@";
     static final String EXCHANGE_MESSAGE_PREFIX = "@MESSAGE@";
     static final String EXCHANGE_DATA_PREFIX = "@BASE64DATA@";
@@ -21,6 +22,9 @@ class Constants {
     static final String EXCHANGE_TAG_0xE0_PREFIX = EXCHANGE_DATA_0xE0_PREFIX;
     static final String EXCHANGE_TAG_0xE4_PREFIX = EXCHANGE_DATA_0xE4_PREFIX;
     static final String EXCHANGE_TAG_0xEA_PREFIX = EXCHANGE_DATA_0xEA_PREFIX;
+
+    static final int CONNECT_RETRY_DELAY = 3 ; //	連線亂數
+    static final int CONNECT_RETRY = 3 ; //	連線亂數
 
     // command list
     static final int CMD_0xC0 = 0 ; //	連線亂數
