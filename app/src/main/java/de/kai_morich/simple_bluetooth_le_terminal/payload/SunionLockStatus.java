@@ -3,12 +3,12 @@ package de.kai_morich.simple_bluetooth_le_terminal.payload;
 import de.kai_morich.simple_bluetooth_le_terminal.CodeUtils;
 
 public class SunionLockStatus {
-    private byte lock_status;
-    private byte dead_bolt;
-    private byte autolock;
-    private byte autolock_delay;
-    private byte vacation_mode;
-    private byte keypress_beep;
+    public byte lock_status;
+    public byte dead_bolt;
+    public byte autolock;
+    public byte autolock_delay;
+    public byte vacation_mode;
+    public byte keypress_beep;
     private byte preamble;
     private byte firmware_version;
     private byte battery;
@@ -26,8 +26,31 @@ public class SunionLockStatus {
     public static final byte LOW_BATTERY_SUGGESTION = (byte) 0x01;
     public static final byte LOW_BATTERY_REQUIRED = (byte) 0x02;
 
+    public static final byte MAX_AUTOLOCK_DELAY_TIME = (byte) 0x63;
+    public static final byte MIN_AUTOLOCK_DELAY_TIME = (byte) 0x0a;
+
+    public static final byte COMMON_ON = (byte) 0x01;
+    public static final byte COMMON_OFF = (byte) 0x00;
+
     public SunionLockStatus(){
         // not to do.
+    }
+    public SunionLockStatus(byte lock_status, Boolean keypress_beep, Boolean vacation_mode, Boolean autolock, int autolock_delay , byte dead_bolt){
+        this.lock_status = lock_status;
+        this.keypress_beep = (keypress_beep) ? (byte)0x01 : (byte)0x00;
+        this.vacation_mode = (vacation_mode) ? (byte)0x01 : (byte)0x00;
+        this.autolock = (autolock) ? (byte)0x01 : (byte)0x00;
+        setAutoLockDelay(autolock_delay);
+        this.dead_bolt = dead_bolt;
+    }
+    public void setAutoLockDelay(int autolock_delay){
+        if (autolock_delay > 99) {
+            this.autolock_delay = MAX_AUTOLOCK_DELAY_TIME;
+        } else if (autolock_delay < 10) {
+            this.autolock_delay = MIN_AUTOLOCK_DELAY_TIME;
+        } else {
+            this.autolock_delay = (byte)autolock_delay;
+        }
     }
     public static SunionLockStatus decodeLockStatusPayload(byte[] data){
 //        1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知

@@ -558,7 +558,7 @@ public class SerialService extends Service implements SerialListener {
         } else if (commandPackage.getCommand() == CodeUtils.HaveMangerPinCode) {
             byte[] payload = commandPackage.getData();
             if (payload.length == 1) {
-                if (payload[0] == (byte) 0x01) {
+                if (payload[0] == (byte) 0x00) {
                     setLockStoragePincodeAdminRequire(true);
                     printMessage(Constants.CMD_NAME_0xEF + " need set admin pincode.");
                 } else {
@@ -1170,9 +1170,11 @@ public class SerialService extends Service implements SerialListener {
                     byte[] payload = commandPackage.getData();
                     if (payload.length == 1) {
                         if ( payload[0] == (byte) 0x01 ) {
-                            printMessage(Constants.CMD_NAME_0xEF + " allow");
+                            printMessage(Constants.CMD_NAME_0xEF + " have");
+                            setLockStoragePincodeAdminRequire(false);
                         } else if ( payload[0] == (byte) 0x00 ) {
-                            printMessage(Constants.CMD_NAME_0xEF + " reject");
+                            printMessage(Constants.CMD_NAME_0xEF + " not have");
+                            setLockStoragePincodeAdminRequire(true);
                         } else {
                             printMessage(Constants.CMD_NAME_0xEF + " unknown return : " + CodeUtils.bytesToHex(payload));
                         }

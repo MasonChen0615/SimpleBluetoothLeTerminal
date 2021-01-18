@@ -373,6 +373,19 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         popupWindow.setFocusable(true);
         popupWindow.setOutsideTouchable(false);
         popupWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        btnConfirm = (Button) view.findViewById(R.id.btnConform);
+        View.OnClickListener btnConfirm_func = new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                switch (view.getId()) {
+                    case R.id.btnConform:
+                        //default
+                        command_click.onClick(view);
+                        popupWindow.dismiss();
+                        break;
+                }
+            }
+        };
         TextView command_setting_head = (TextView) view.findViewById(R.id.command_setting_head);
         command_setting_head.setText(leaders.get(current_command_select_position).get(NAME) + " " + getResources().getString(R.string.CommandArgs));
         TextView[] command_arg = {
@@ -464,44 +477,46 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xC1_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
-            case Constants.CMD_0xCC:
-            case Constants.CMD_0xCE:
-            case Constants.CMD_0xD0:
-                command_arg[0].setVisibility(View.VISIBLE);
-                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
-                edit_command_arg[0].setVisibility(View.VISIBLE);
-                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
-                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
-                break;
             case Constants.CMD_0xD1:
                 command_arg[0].setVisibility(View.VISIBLE);
                 command_arg[0].setText(R.string.Command_CMD_0xD1_Arg0);
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xD1_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_TEXT);
-                break;
-            case Constants.CMD_0xD2:
-                command_arg[0].setVisibility(View.VISIBLE);
-                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
-                edit_command_arg[0].setVisibility(View.VISIBLE);
-                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
-                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
+                edit_command_arg[0].setText(command_args.getDeviceName(true));
+                btnConfirm_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        switch (view.getId()) {
+                            case R.id.btnConform:
+                                //default
+                                command_args.setDeviceName(edit_command_arg[0].getText().toString());
+                                command_click.onClick(view);
+                                popupWindow.dismiss();
+                                break;
+                        }
+                    }
+                };
                 break;
             case Constants.CMD_0xD3:
                 command_arg[0].setVisibility(View.VISIBLE);
                 command_arg[0].setText(R.string.Command_CMD_0xD3_Arg0);
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xD3_Arg0_Message);
-                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
-                break;
-            case Constants.CMD_0xD4:
-                command_arg[0].setVisibility(View.VISIBLE);
-                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
-                edit_command_arg[0].setVisibility(View.VISIBLE);
-                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_NULL);
+                edit_command_arg[0].setText(CodeUtils.bytesToHex(command_args.getTime()));
                 break;
             case Constants.CMD_0xD5:
+                names = getResources().getStringArray(R.array.command_arg_D5_arg0);
+                leaders_String = new ArrayList<String>();
+                for(int i = 0; i < names.length; i++){
+                    leaders_String.add(names[i]);
+                }
+                adapter_String = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_String);
+                adapter_String.setDropDownViewResource( R.layout.command_args_spinner_item);
+                dy_mSpn[0].setAdapter(adapter_String);
+                dy_mSpn[0].setVisibility(View.VISIBLE);
+                dy_mSpn[0].setSelection(3);
                 names = getResources().getStringArray(R.array.command_arg_common_boolean);
                 leaders_String = new ArrayList<String>();
                 for(int i = 0; i < names.length; i++){
@@ -509,7 +524,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 }
                 for(int i = 0 ; i < 5 ; i++){
                     command_arg[i].setVisibility(View.VISIBLE);
-                    if ( i < 4){
+                    if ( i < 4 && i > 0){
                         adapter_String = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_String);
                         adapter_String.setDropDownViewResource( R.layout.command_args_spinner_item);
                         dy_mSpn[i].setAdapter(adapter_String);
@@ -519,18 +534,77 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 command_arg[0].setText(R.string.Command_CMD_0xD5_Arg0);
                 command_arg[1].setText(R.string.Command_CMD_0xD5_Arg1);
                 command_arg[2].setText(R.string.Command_CMD_0xD5_Arg2);
+                dy_mSpn[2].setSelection(1);
                 command_arg[3].setText(R.string.Command_CMD_0xD5_Arg3);
                 command_arg[4].setText(R.string.Command_CMD_0xD5_Arg4);
                 edit_command_arg[4].setVisibility(View.VISIBLE);
                 edit_command_arg[4].setHint(R.string.Command_CMD_0xD5_Arg4_Message);
                 edit_command_arg[4].setInputType(InputType.TYPE_CLASS_NUMBER);
-                break;
-            case Constants.CMD_0xD6:
-                command_arg[0].setVisibility(View.VISIBLE);
-                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
-                edit_command_arg[0].setVisibility(View.VISIBLE);
-                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
-                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
+                edit_command_arg[4].setText("30");
+                btnConfirm_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        switch (view.getId()) {
+                            case R.id.btnConform:
+                                switch (dy_mSpn[0].getSelectedItemPosition()){
+                                    case 0:
+                                        command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_RIGHT;
+                                        break;
+                                    case 1:
+                                        command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_LEFT;
+                                        break;
+                                    case 2:
+                                        command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_UNKNOWN;
+                                        break;
+                                    case 3:
+                                        command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_NOT_TO_DO;
+                                        break;
+                                }
+                                for(int i = 1 ; i < 4 ; i++){
+                                    switch(i){
+                                        case 1:
+                                            switch(dy_mSpn[i].getSelectedItemPosition()){
+                                                case 0:
+                                                    command_args.config_status.keypress_beep = SunionLockStatus.COMMON_ON;
+                                                    break;
+                                                case 1:
+                                                    command_args.config_status.keypress_beep = SunionLockStatus.COMMON_OFF;
+                                                    break;
+                                            }
+                                            break;
+                                        case 2:
+                                            switch(dy_mSpn[i].getSelectedItemPosition()){
+                                                case 0:
+                                                    command_args.config_status.vacation_mode = SunionLockStatus.COMMON_ON;
+                                                    break;
+                                                case 1:
+                                                    command_args.config_status.vacation_mode = SunionLockStatus.COMMON_OFF;
+                                                    break;
+                                            }
+                                            break;
+                                        case 3:
+                                            switch(dy_mSpn[i].getSelectedItemPosition()){
+                                                case 0:
+                                                    command_args.config_status.autolock = SunionLockStatus.COMMON_ON;
+                                                    break;
+                                                case 1:
+                                                    command_args.config_status.autolock = SunionLockStatus.COMMON_OFF;
+                                                    break;
+                                            }
+                                            break;
+                                    }
+                                }
+                                try {
+                                    command_args.config_status.setAutoLockDelay(Integer.parseInt(edit_command_arg[4].getText().toString()));
+                                } catch (NumberFormatException e){
+                                    command_args.config_status.setAutoLockDelay(30);
+                                }
+                                command_click.onClick(view);
+                                popupWindow.dismiss();
+                                break;
+                        }
+                    }
+                };
                 break;
             case Constants.CMD_0xD7:
                 command_arg[0].setVisibility(View.VISIBLE);
@@ -544,13 +618,25 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 adapter.setDropDownViewResource( R.layout.command_args_spinner_item);
                 dy_mSpn[0].setAdapter(adapter);
                 dy_mSpn[0].setVisibility(View.VISIBLE);
-                break;
-            case Constants.CMD_0xE0:
-                command_arg[0].setVisibility(View.VISIBLE);
-                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
-                edit_command_arg[0].setVisibility(View.VISIBLE);
-                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
-                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
+                btnConfirm_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        switch (view.getId()) {
+                            case R.id.btnConform:
+                                switch (dy_mSpn[0].getSelectedItemPosition()){
+                                    case 0:
+                                        command_args.config_status.dead_bolt = SunionLockStatus.DEAD_BOLT_LOCK;
+                                        break;
+                                    case 1:
+                                        command_args.config_status.dead_bolt = SunionLockStatus.DEAD_BOLT_UNLOCK;
+                                        break;
+                                }
+                                command_click.onClick(view);
+                                popupWindow.dismiss();
+                                break;
+                        }
+                    }
+                };
                 break;
             case Constants.CMD_0xE1:
                 command_arg[0].setVisibility(View.VISIBLE);
@@ -558,6 +644,22 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xE1_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                btnConfirm_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        switch (view.getId()) {
+                            case R.id.btnConform:
+                                try {
+                                    command_args.setLogIndex(Integer.parseInt(edit_command_arg[0].getText().toString()));
+                                } catch (NumberFormatException e){
+                                    command_args.setLogIndex(0);
+                                }
+                                command_click.onClick(view);
+                                popupWindow.dismiss();
+                                break;
+                        }
+                    }
+                };
                 break;
             case Constants.CMD_0xE2:
                 command_arg[0].setVisibility(View.VISIBLE);
@@ -565,15 +667,22 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xE2_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
-                break;
-//            case Constants.CMD_0xE3:
-//                break;
-            case Constants.CMD_0xE4:
-                command_arg[0].setVisibility(View.VISIBLE);
-                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
-                edit_command_arg[0].setVisibility(View.VISIBLE);
-                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
-                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
+                btnConfirm_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        switch (view.getId()) {
+                            case R.id.btnConform:
+                                try {
+                                    command_args.setLogCount(Integer.parseInt(edit_command_arg[0].getText().toString()));
+                                } catch (NumberFormatException e){
+                                    command_args.setLogCount(1);
+                                }
+                                command_click.onClick(view);
+                                popupWindow.dismiss();
+                                break;
+                        }
+                    }
+                };
                 break;
             case Constants.CMD_0xE5:
                 command_arg[0].setVisibility(View.VISIBLE);
@@ -606,15 +715,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xE8_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
-                break;
-//            case Constants.CMD_0xE9:
-//                break;
-            case Constants.CMD_0xEA:
-                command_arg[0].setVisibility(View.VISIBLE);
-                command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
-                edit_command_arg[0].setVisibility(View.VISIBLE);
-                edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
-                edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
             case Constants.CMD_0xEB:
                 command_arg[0].setVisibility(View.VISIBLE);
@@ -675,28 +775,399 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xEE_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 break;
+            case Constants.CMD_0xCC:
+            case Constants.CMD_0xCE:
+            case Constants.CMD_0xD0:
+            case Constants.CMD_0xD2:
+            case Constants.CMD_0xD4:
+            case Constants.CMD_0xD6:
+            case Constants.CMD_0xE0:
+            case Constants.CMD_0xE4:
+            case Constants.CMD_0xEA:
             case Constants.CMD_0xEF:
+            default:
                 command_arg[0].setVisibility(View.VISIBLE);
                 command_arg[0].setText(R.string.Command_CMD_Common_None_Arg0);
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_Common_None_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_NULL);
                 break;
-            default:
-                break;
         }
-        btnConfirm = (Button) view.findViewById(R.id.btnConform);
-        btnConfirm.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                switch (view.getId()) {
-                    case R.id.btnConform:
-                        popupWindow.dismiss();
-                        break;
-                }
-            }
-        });
+        btnConfirm.setOnClickListener(btnConfirm_func);
     }
+
+    private View.OnClickListener command_click = new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            sendText.setText("");
+            resetState();
+            byte[] tmp;
+            byte[] data;
+            int random_name;
+            String test_name;
+            Log.i(Constants.DEBUG_TAG,"command prepare:" + leaders.get(current_command_select_position).get(NAME));
+            switch(current_command_select_position){
+                case Constants.CMD_0xC0:  // 連線亂數
+                    commandC0();
+                    break;
+                case Constants.CMD_0xC1:  // 連線 Token
+                    readToken();
+                    SunionToken token  = service.getSecretLockToken();
+                    if (token.getToken().length != 0){
+                        SpannableStringBuilder spn = new SpannableStringBuilder("Using Token"+'\n');
+                        spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        receiveText.append(spn);
+                        commandWithStep(
+                                CodeUtils.Connect,
+                                CodeUtils.Connect_UsingTokenConnect,
+                                (byte)token.getToken().length,
+                                token.getToken()
+                        );
+                    }else{
+                        SpannableStringBuilder spn = new SpannableStringBuilder("Using Once Token"+'\n');
+                        spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        receiveText.append(spn);
+                        commandWithStep(
+                                CodeUtils.Connect,
+                                CodeUtils.Connect_UsingOnceTokenConnect,
+                                (byte)service.lock_token.length(),
+                                service.lock_token.getBytes()
+                        );
+                    }
+                    break;
+                case Constants.CMD_0xCC:
+                    commandNormal(CodeUtils.DirectionCheck,(byte) 0x00,new byte[]{});
+                    break;
+                case Constants.CMD_0xCE:
+                    commandNormal(CodeUtils.FactoryReset,(byte) 0x00,new byte[]{});
+                    break;
+                case Constants.CMD_0xD0:
+                    commandNormal(CodeUtils.InquireLockName,(byte) 0x00,new byte[]{});
+                    break;
+                case Constants.CMD_0xD1:
+                    data = command_args.getDeviceName(false).getBytes();
+                    commandNormal(CodeUtils.SetLockName,(byte) data.length,data);
+                    break;
+                case Constants.CMD_0xD2:
+                    commandNormal(CodeUtils.InquireLockTime,(byte) 0x00,new byte[]{});
+                    break;
+                case Constants.CMD_0xD3:
+                    data = command_args.getTime();
+                    commandNormal(CodeUtils.SetLockTime,(byte) data.length,data);
+                    break;
+                case Constants.CMD_0xD4:
+                    commandNormal(CodeUtils.InquireLockConfig,(byte) 0x00,new byte[]{});
+                    break;
+                case Constants.CMD_0xD5:
+                    data = new byte[5];
+//                        1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知 , Other 0xA3 忽視(建議)
+//                        2	1	聲音 1:開啟, 0:關閉
+//                        3	1	假期模式 1:開啟, 0:關閉
+//                        4	1	自動上鎖 1:開啟, 0:關閉
+//                        5	1	自動上鎖時間 10~99
+                    int random_autolock_delay = new Random().nextInt((99 - 10) + 1) + 10;
+                    data[0] = SunionLockStatus.LOCK_STATUS_NOT_TO_DO;
+                    data[1] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;  // keypressbee
+//                        data[2] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;  // vacation mode
+                    data[2] = (byte)0x00;  // vacation mode
+                    data[3] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
+                    data[4] = (byte) random_autolock_delay;
+                    String notice = "鎖體方向:忽視,";
+                    notice += " 聲音:" + CodeUtils.bytesToHex(new byte[]{data[1]});
+                    notice += " 假期模式:" + CodeUtils.bytesToHex(new byte[]{data[2]});
+                    notice += " 自動上鎖:" + CodeUtils.bytesToHex(new byte[]{data[3]});
+                    notice += " 自動上鎖時間:" + CodeUtils.bytesToHex(new byte[]{data[4]});
+                    popNotice(notice);
+                    commandNormal(CodeUtils.SetLockConfig,(byte) data.length,data);
+                    break;
+                case Constants.CMD_0xD6:
+                    commandNormal(CodeUtils.InquireLockState,(byte) 0x00,new byte[]{});
+                    break;
+                case Constants.CMD_0xD7:
+                    data = new byte[1];
+                    data[0] = wish_set_lock_state ? (byte) 0x01 : (byte) 0x00 ;
+                    commandNormal(CodeUtils.SetLockState,(byte) data.length,data);
+                    wish_set_lock_state = !wish_set_lock_state;
+                    break;
+                case Constants.CMD_0xE0:
+                    commandNormal(CodeUtils.InquireLogCount,(byte) 0x00,new byte[]{});
+                    break;
+                case Constants.CMD_0xE1:
+                    if (service.getLockLogCurrentNumber() < 0) {
+                        popNotice("you need to run 0xE0 InquireLogCount to get total log size");
+                    } else {
+                        data = new byte[1];
+                        data[0] = (byte) getLogIndex();
+                        commandNormal(CodeUtils.InquireLog,(byte) data.length,data);
+                    }
+                    break;
+                case Constants.CMD_0xE2:
+                    if (service.getLockLogCurrentNumber() < 0) {
+                        popNotice("you need to run 0xE0 InquireLogCount to get total log size");
+                    } else {
+                        data = new byte[1];
+//                            data[0] = (byte) getLogIndex();
+                        // is count not index. one click delete one log.
+                        data[0] = (byte) 0x01;
+                        commandNormal(CodeUtils.DeleteLog,(byte) data.length,data);
+                    }
+                    break;
+//                    case Constants.CMD_0xE3:
+//                        break;
+                case Constants.CMD_0xE4:
+                    commandNormal(CodeUtils.InquireTokenArray,(byte) 0x00,new byte[]{});
+                    storage_token_index = 0;
+                    break;
+                case Constants.CMD_0xE5:
+                    if (!service.getLockStorageTokenISSet()) {
+                        popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                    } else {
+                        data = new byte[1];
+                        int run_storage_token_index = getStorageTokenIndex();
+                        data[0] = (byte) run_storage_token_index;
+                        popNotice("Token index is " + ((int)(data[0] & (byte)0xff)));
+                        commandWithStep(
+                                CodeUtils.InquireToken,
+                                run_storage_token_index + "",
+                                (byte)data.length,
+                                data
+                        );
+                    }
+                    break;
+                case Constants.CMD_0xE6:
+                    if (!service.getLockStorageTokenISSet()) {
+                        popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                    } else {
+                        random_name = new Random().nextInt((999 - 100) + 1) + 100;
+                        test_name = "New Once Token-" + random_name ;
+                        commandWithStep(
+                                CodeUtils.NewOnceToken,
+                                test_name,
+                                (byte)test_name.length(),
+                                test_name.getBytes()
+                        );
+                    }
+                    break;
+                case Constants.CMD_0xE7:
+                    if (!service.getLockStorageTokenISSet()) {
+                        popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                    } else {
+                        random_name = new Random().nextInt((999 - 100) + 1) + 100;
+                        test_name = "Modify Token-" + random_name ;
+                        tmp = test_name.getBytes();
+                        data = new byte[test_name.length() + 1];
+                        data[0] = (byte) getStorageTokenIndex();
+                        popNotice("Modify Token index is " + ((int)(data[0] & (byte)0xff)));
+                        for ( int i = 1 ; i < data.length ; i++ ) {
+                            data[i] = tmp[i-1];
+                        }
+                        commandWithStep(
+                                CodeUtils.ModifyToken,
+                                ((int)(data[0] & (byte)0xff)) + "",
+                                (byte)data.length,
+                                data
+                        );
+                    }
+                    break;
+                case Constants.CMD_0xE8:
+                    if (!service.getLockStorageTokenISSet()) {
+                        popNotice("you need to run 0xE4 InquireTokenArray to get token status");
+                    } else {
+                        data = new byte[1];
+                        data[0] = (byte) getStorageTokenIndex();
+                        popNotice("Delete Token index is " + ((int)(data[0] & (byte)0xff)));
+                        commandWithStep(
+                                CodeUtils.DeleteToken,
+                                ((int)(data[0] & (byte)0xff)) + "",
+                                (byte)data.length,
+                                data
+                        );
+                    }
+                    break;
+//                    case Constants.CMD_0xE9:
+//                        break;
+                case Constants.CMD_0xEA:
+                    commandNormal(CodeUtils.InquirePinCodeArray,(byte) 0x00,new byte[]{});
+                    storage_pincode_index = 0;
+                    break;
+                case Constants.CMD_0xEB:
+                    if (!service.getLockStoragePincodeISSet()) {
+                        popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
+                    } else {
+                        data = new byte[1];
+                        data[0] = (byte) getStoragePincodeIndex();
+                        popNotice("PinCode index is " + ((int)(data[0] & (byte)0xff)));
+                        commandWithStep(
+                                CodeUtils.InquirePinCode,
+                                ((int)(data[0] & (byte)0xff)) + "",
+                                (byte)data.length,
+                                data
+                        );
+                    }
+                    break;
+                case Constants.CMD_0xEC:
+                    if (!service.getLockStoragePincodeISSet() && !service.getLockStoragePincodeAdminRequire()) {
+                        popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
+                    } else {
+
+
+                        byte index = (byte) getStoragePincodeIndex();
+                        SunionPincodeStatus pincode;
+                        if (index == (byte)0x00){
+                            pincode = new SunionPincodeStatus(
+                                    true,
+                                    new byte[]{SunionPincodeStatus.PWD_1,SunionPincodeStatus.PWD_2,SunionPincodeStatus.PWD_3,SunionPincodeStatus.PWD_4},
+                                    new SunionPincodeSchedule(
+                                            SunionPincodeSchedule.ALL_DAY,
+                                            (byte)0x00,
+                                            SunionPincodeSchedule.WEEK_TIME_MIN,
+                                            SunionPincodeSchedule.WEEK_TIME_MAX,
+                                            SunionPincodeSchedule.SEEK_TIME_MIN,
+                                            SunionPincodeSchedule.SEEK_TIME_MAX
+                                    ),
+                                    "Hello!".getBytes()
+                            );
+
+                        } else {
+                            byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
+                            pincode = new SunionPincodeStatus(
+                                    true,
+                                    new byte[]{SunionPincodeStatus.PWD_1,SunionPincodeStatus.PWD_2,SunionPincodeStatus.PWD_3,SunionPincodeStatus.PWD_4},
+                                    new SunionPincodeSchedule(
+                                            SunionPincodeSchedule.WEEK_ROUTINE,
+                                            weekday,
+                                            SunionPincodeSchedule.WEEK_TIME_MIN,
+                                            SunionPincodeSchedule.WEEK_TIME_MAX,
+                                            SunionPincodeSchedule.SEEK_TIME_MIN,
+                                            SunionPincodeSchedule.SEEK_TIME_MAX
+                                    ),
+                                    "Hello!".getBytes()
+                            );
+                        }
+                        tmp = pincode.encodePincodePayload();
+                        data = new byte[1+tmp.length];
+                        data[0] = index;
+                        if (service.getLockStoragePincodeAdminRequire()){
+                            popNotice("Pincode admin require, Pincode index is " + ((int)(data[0] & (byte)0xff)));
+                        } else {
+                            popNotice("Pincode index is " + ((int)(data[0] & (byte)0xff)));
+                        }
+                        for (int i = 1 ; i < data.length ; i++) {
+                            data[i] = tmp[i-1];
+                        }
+                        commandWithStep(
+                                CodeUtils.NewPinCode,
+                                ((int)(data[0] & (byte)0xff)) + "",
+                                (byte)data.length,
+                                data
+                        );
+                    }
+                    break;
+                case Constants.CMD_0xED:
+                    if (!service.getLockStoragePincodeISSet()) {
+                        popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
+                    } else {
+                        SunionPincodeStatus pincode;
+                        byte index = (byte) getStoragePincodeIndex();
+                        if (index == (byte)0x00) {
+                            pincode = new SunionPincodeStatus(
+                                    true,
+                                    new byte[]{SunionPincodeStatus.PWD_5,SunionPincodeStatus.PWD_6,SunionPincodeStatus.PWD_7,SunionPincodeStatus.PWD_8},
+                                    new SunionPincodeSchedule(
+                                            SunionPincodeSchedule.ALL_DAY,
+                                            (byte)0x00,
+                                            SunionPincodeSchedule.WEEK_TIME_MIN,
+                                            SunionPincodeSchedule.WEEK_TIME_MAX,
+                                            SunionPincodeSchedule.SEEK_TIME_MIN,
+                                            SunionPincodeSchedule.SEEK_TIME_MAX
+                                    ),
+                                    "Modify Code".getBytes()
+                            );
+                        } else if (index == (byte)0x02){
+                            byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
+                            pincode = new SunionPincodeStatus(
+                                    false,
+                                    new byte[]{SunionPincodeStatus.PWD_9,SunionPincodeStatus.PWD_0,SunionPincodeStatus.PWD_1,SunionPincodeStatus.PWD_2},
+                                    new SunionPincodeSchedule(
+                                            SunionPincodeSchedule.WEEK_ROUTINE,
+                                            weekday,
+                                            SunionPincodeSchedule.WEEK_TIME_MIN,
+                                            SunionPincodeSchedule.WEEK_TIME_MAX,
+                                            SunionPincodeSchedule.SEEK_TIME_MIN,
+                                            SunionPincodeSchedule.SEEK_TIME_MAX
+                                    ),
+                                    "Modify Code".getBytes()
+                            );
+                        } else if (index == (byte)0x03){
+                            byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
+                            pincode = new SunionPincodeStatus(
+                                    true,
+                                    new byte[]{SunionPincodeStatus.PWD_3,SunionPincodeStatus.PWD_4,SunionPincodeStatus.PWD_5,SunionPincodeStatus.PWD_6},
+                                    new SunionPincodeSchedule(
+                                            SunionPincodeSchedule.WEEK_ROUTINE,
+                                            weekday,
+                                            SunionPincodeSchedule.WEEK_TIME_MIN,
+                                            SunionPincodeSchedule.WEEK_TIME_MAX,
+                                            SunionPincodeSchedule.SEEK_TIME_MIN,
+                                            SunionPincodeSchedule.SEEK_TIME_MAX
+                                    ),
+                                    "Hello!".getBytes()
+                            );
+                        } else {
+                            byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
+                            pincode = new SunionPincodeStatus(
+                                    true,
+                                    new byte[]{SunionPincodeStatus.PWD_5,SunionPincodeStatus.PWD_6,SunionPincodeStatus.PWD_7,SunionPincodeStatus.PWD_8},
+                                    new SunionPincodeSchedule(
+                                            SunionPincodeSchedule.WEEK_ROUTINE,
+                                            weekday,
+                                            SunionPincodeSchedule.WEEK_TIME_MIN,
+                                            SunionPincodeSchedule.WEEK_TIME_MAX,
+                                            SunionPincodeSchedule.SEEK_TIME_MIN,
+                                            SunionPincodeSchedule.SEEK_TIME_MAX
+                                    ),
+                                    "Modify Code".getBytes()
+                            );
+                        }
+                        tmp = pincode.encodePincodePayload();
+                        data = new byte[1+tmp.length];
+                        data[0] = index;
+                        popNotice("PinCode index is " + ((int)(data[0] & (byte)0xff)));
+                        for (int i = 1 ; i < data.length ; i++) {
+                            data[i] = tmp[i-1];
+                        }
+                        commandWithStep(
+                                CodeUtils.ModifyPinCode,
+                                ((int)(data[0] & (byte)0xff)) + "",
+                                (byte)data.length,
+                                data
+                        );
+                    }
+                    break;
+                case Constants.CMD_0xEE:
+                    if (!service.getLockStoragePincodeISSet()) {
+                        popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
+                    } else {
+                        data = new byte[1];
+                        data[0] = (byte) getStoragePincodeIndex();
+                        popNotice("PinCode index is " + ((int)(data[0] & (byte)0xff)));
+                        commandWithStep(
+                                CodeUtils.DeletePinCode,
+                                ((int)(data[0] & (byte)0xff)) + "",
+                                (byte)data.length,
+                                data
+                        );
+                    }
+                    break;
+                case Constants.CMD_0xEF:
+                    commandNormal(CodeUtils.HaveMangerPinCode,(byte) 0x00,new byte[]{});
+                    break;
+                default:
+                    break;
+            }
+
+        }
+    };
 
     /*
      * UI
@@ -713,6 +1184,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         hexWatcher.enable(hexEnabled);
         sendText.addTextChangedListener(hexWatcher);
         sendText.setHint(hexEnabled ? "HEX mode" : "");
+        sendText.setInputType(InputType.TYPE_NULL);
 
         Spinner mSpn = (Spinner) view.findViewById(R.id.CommandSpinner);
         mSpn.setOnItemSelectedListener(spnOnItemSelected);
@@ -744,318 +1216,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             }
         });
 
-        command_button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                sendText.setText("");
-                resetState();
-                byte[] tmp;
-                byte[] data;
-                int random_name;
-                String test_name;
-                Log.i(Constants.DEBUG_TAG,"command prepare:" + leaders.get(current_command_select_position).get(NAME));
-                switch(current_command_select_position){
-                    case Constants.CMD_0xC0:  // 連線亂數
-                        commandC0();
-                        break;
-                    case Constants.CMD_0xC1:  // 連線 Token
-                        readToken();
-                        SunionToken token  = service.getSecretLockToken();
-                        if (token.getToken().length != 0){
-                            SpannableStringBuilder spn = new SpannableStringBuilder("Using Token"+'\n');
-                            spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                            receiveText.append(spn);
-//                            commandC1(token);
-                            commandWithStep(
-                                    CodeUtils.Connect,
-                                    CodeUtils.Connect_UsingTokenConnect,
-                                    (byte)token.getToken().length,
-                                    token.getToken()
-                            );
-                        }else{
-                            SpannableStringBuilder spn = new SpannableStringBuilder("Using Once Token"+'\n');
-                            spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                            receiveText.append(spn);
-//                            commandC1UsingOnce();
-                            commandWithStep(
-                                    CodeUtils.Connect,
-                                    CodeUtils.Connect_UsingOnceTokenConnect,
-                                    (byte)service.lock_token.length(),
-                                    service.lock_token.getBytes()
-                            );
-                        }
-                        break;
-                    case Constants.CMD_0xCC:
-                        commandNormal(CodeUtils.DirectionCheck,(byte) 0x00,new byte[]{});
-                        break;
-                    case Constants.CMD_0xCE:
-                        commandNormal(CodeUtils.FactoryReset,(byte) 0x00,new byte[]{});
-                        break;
-                    case Constants.CMD_0xD0:
-                        commandNormal(CodeUtils.InquireLockName,(byte) 0x00,new byte[]{});
-                        break;
-                    case Constants.CMD_0xD1:
-                        random_name = new Random().nextInt((999 - 100) + 1) + 100;
-                        test_name = "Name-" + random_name;
-                        data = test_name.getBytes();
-                        commandNormal(CodeUtils.SetLockName,(byte) data.length,data);
-                        break;
-                    case Constants.CMD_0xD2:
-                        commandNormal(CodeUtils.InquireLockTime,(byte) 0x00,new byte[]{});
-                        break;
-                    case Constants.CMD_0xD3:
-                        Long tsLong = System.currentTimeMillis()/1000;
-                        data = CodeUtils.intToLittleEndian(tsLong);
-                        commandNormal(CodeUtils.SetLockTime,(byte) data.length,data);
-                        break;
-                    case Constants.CMD_0xD4:
-                        commandNormal(CodeUtils.InquireLockConfig,(byte) 0x00,new byte[]{});
-                        break;
-                    case Constants.CMD_0xD5:
-                        data = new byte[5];
-//                        1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知 , Other 0xA3 忽視(建議)
-//                        2	1	聲音 1:開啟, 0:關閉
-//                        3	1	假期模式 1:開啟, 0:關閉
-//                        4	1	自動上鎖 1:開啟, 0:關閉
-//                        5	1	自動上鎖時間 10~99
-                        int random_autolock_delay = new Random().nextInt((99 - 10) + 1) + 10;
-                        data[0] = SunionLockStatus.LOCK_STATUS_NOT_TO_DO;
-                        data[1] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;  // keypressbee
-//                        data[2] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;  // vacation mode
-                        data[2] = (byte)0x00;  // vacation mode
-                        data[3] = new Random().nextBoolean() ? (byte)0x01 : (byte)0x00;
-                        data[4] = (byte) random_autolock_delay;
-                        String notice = "鎖體方向:忽視,";
-                        notice += " 聲音:" + CodeUtils.bytesToHex(new byte[]{data[1]});
-                        notice += " 假期模式:" + CodeUtils.bytesToHex(new byte[]{data[2]});
-                        notice += " 自動上鎖:" + CodeUtils.bytesToHex(new byte[]{data[3]});
-                        notice += " 自動上鎖時間:" + CodeUtils.bytesToHex(new byte[]{data[4]});
-                        popNotice(notice);
-                        commandNormal(CodeUtils.SetLockConfig,(byte) data.length,data);
-                        break;
-                    case Constants.CMD_0xD6:
-                        commandNormal(CodeUtils.InquireLockState,(byte) 0x00,new byte[]{});
-                        break;
-                    case Constants.CMD_0xD7:
-                        data = new byte[1];
-                        data[0] = wish_set_lock_state ? (byte) 0x01 : (byte) 0x00 ;
-                        commandNormal(CodeUtils.SetLockState,(byte) data.length,data);
-                        wish_set_lock_state = !wish_set_lock_state;
-                        break;
-                    case Constants.CMD_0xE0:
-                        commandNormal(CodeUtils.InquireLogCount,(byte) 0x00,new byte[]{});
-                        break;
-                    case Constants.CMD_0xE1:
-                        if (service.getLockLogCurrentNumber() < 0) {
-                            popNotice("you need to run 0xE0 InquireLogCount to get total log size");
-                        } else {
-                            data = new byte[1];
-                            data[0] = (byte) getLogIndex();
-                            commandNormal(CodeUtils.InquireLog,(byte) data.length,data);
-                        }
-                        break;
-                    case Constants.CMD_0xE2:
-                        if (service.getLockLogCurrentNumber() < 0) {
-                            popNotice("you need to run 0xE0 InquireLogCount to get total log size");
-                        } else {
-                            data = new byte[1];
-//                            data[0] = (byte) getLogIndex();
-                            // is count not index. one click delete one log.
-                            data[0] = (byte) 0x01;
-                            commandNormal(CodeUtils.DeleteLog,(byte) data.length,data);
-                        }
-                        break;
-//                    case Constants.CMD_0xE3:
-//                        break;
-                    case Constants.CMD_0xE4:
-                        commandNormal(CodeUtils.InquireTokenArray,(byte) 0x00,new byte[]{});
-                        storage_token_index = 0;
-                        break;
-                    case Constants.CMD_0xE5:
-                        if (!service.getLockStorageTokenISSet()) {
-                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
-                        } else {
-                            data = new byte[1];
-                            int run_storage_token_index = getStorageTokenIndex();
-                            data[0] = (byte) run_storage_token_index;
-                            popNotice("Token index is " + ((int)(data[0] & (byte)0xff)));
-                            commandWithStep(
-                                    CodeUtils.InquireToken,
-                                    run_storage_token_index + "",
-                                    (byte)data.length,
-                                    data
-                            );
-                        }
-                        break;
-                    case Constants.CMD_0xE6:
-                        if (!service.getLockStorageTokenISSet()) {
-                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
-                        } else {
-                            random_name = new Random().nextInt((999 - 100) + 1) + 100;
-                            test_name = "New Once Token-" + random_name ;
-                            commandWithStep(
-                                    CodeUtils.NewOnceToken,
-                                    test_name,
-                                    (byte)test_name.length(),
-                                    test_name.getBytes()
-                            );
-                        }
-                        break;
-                    case Constants.CMD_0xE7:
-                        if (!service.getLockStorageTokenISSet()) {
-                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
-                        } else {
-                            random_name = new Random().nextInt((999 - 100) + 1) + 100;
-                            test_name = "Modify Token-" + random_name ;
-                            tmp = test_name.getBytes();
-                            data = new byte[test_name.length() + 1];
-                            data[0] = (byte) getStorageTokenIndex();
-                            popNotice("Modify Token index is " + ((int)(data[0] & (byte)0xff)));
-                            for ( int i = 1 ; i < data.length ; i++ ) {
-                                data[i] = tmp[i-1];
-                            }
-                            commandWithStep(
-                                    CodeUtils.ModifyToken,
-                                    ((int)(data[0] & (byte)0xff)) + "",
-                                    (byte)data.length,
-                                    data
-                            );
-                        }
-                        break;
-                    case Constants.CMD_0xE8:
-                        if (!service.getLockStorageTokenISSet()) {
-                            popNotice("you need to run 0xE4 InquireTokenArray to get token status");
-                        } else {
-                            data = new byte[1];
-                            data[0] = (byte) getStorageTokenIndex();
-                            popNotice("Delete Token index is " + ((int)(data[0] & (byte)0xff)));
-                            commandWithStep(
-                                    CodeUtils.DeleteToken,
-                                    ((int)(data[0] & (byte)0xff)) + "",
-                                    (byte)data.length,
-                                    data
-                            );
-                        }
-                        break;
-//                    case Constants.CMD_0xE9:
-//                        break;
-                    case Constants.CMD_0xEA:
-                        commandNormal(CodeUtils.InquirePinCodeArray,(byte) 0x00,new byte[]{});
-                        storage_pincode_index = 0;
-                        break;
-                    case Constants.CMD_0xEB:
-                        if (!service.getLockStoragePincodeISSet()) {
-                            popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
-                        } else {
-                            data = new byte[1];
-                            data[0] = (byte) getStoragePincodeIndex();
-                            popNotice("PinCode index is " + ((int)(data[0] & (byte)0xff)));
-                            commandWithStep(
-                                    CodeUtils.InquirePinCode,
-                                    ((int)(data[0] & (byte)0xff)) + "",
-                                    (byte)data.length,
-                                    data
-                            );
-                        }
-                        break;
-                    case Constants.CMD_0xEC:
-                        if (!service.getLockStoragePincodeISSet()) {
-                            popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
-                        } else {
-                            // TODO: Add ui to control.
-//                            1	1	Index 0 ~ 200
-//                            2	1	Enable 1:可使用, 0:不可使用
-//                            3	1	PinCode長度 4 ~ 6
-//                            4 ~	len	PinCode
-//                            (5+len) ~ (16+len)	12	Schedule
-//                            (17+len) ~	(最多 20 Byte)	Name
-                            byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
-                            SunionPincodeStatus pincode = new SunionPincodeStatus(
-                                    true,
-                                    new byte[]{SunionPincodeStatus.PWD_1,SunionPincodeStatus.PWD_2,SunionPincodeStatus.PWD_3,SunionPincodeStatus.PWD_4},
-                                    new SunionPincodeSchedule(
-                                            SunionPincodeSchedule.WEEK_ROUTINE,
-                                            weekday,
-                                            SunionPincodeSchedule.WEEK_TIME_MIN,
-                                            SunionPincodeSchedule.WEEK_TIME_MAX,
-                                            SunionPincodeSchedule.SEEK_TIME_MIN,
-                                            SunionPincodeSchedule.SEEK_TIME_MAX
-                                    ),
-                                    "Hello!".getBytes()
-                            );
-                            tmp = pincode.encodePincodePayload();
-                            data = new byte[1+tmp.length];
-                            data[0] = (byte) getStoragePincodeIndex();
-                            popNotice("PinCode index is " + ((int)(data[0] & (byte)0xff)));
-                            for (int i = 1 ; i < data.length ; i++) {
-                                data[i] = tmp[i-1];
-                            }
-                            commandWithStep(
-                                    CodeUtils.NewPinCode,
-                                    ((int)(data[0] & (byte)0xff)) + "",
-                                    (byte)data.length,
-                                    data
-                            );
-                        }
-                        break;
-                    case Constants.CMD_0xED:
-                        if (!service.getLockStoragePincodeISSet()) {
-                            popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
-                        } else {
-                            // TODO: Add ui to control.
-                            byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
-                            SunionPincodeStatus pincode = new SunionPincodeStatus(
-                                    true,
-                                    new byte[]{SunionPincodeStatus.PWD_5,SunionPincodeStatus.PWD_6,SunionPincodeStatus.PWD_7,SunionPincodeStatus.PWD_8},
-                                    new SunionPincodeSchedule(
-                                            SunionPincodeSchedule.WEEK_ROUTINE,
-                                            weekday,
-                                            SunionPincodeSchedule.WEEK_TIME_MIN,
-                                            SunionPincodeSchedule.WEEK_TIME_MAX,
-                                            SunionPincodeSchedule.SEEK_TIME_MIN,
-                                            SunionPincodeSchedule.SEEK_TIME_MAX
-                                    ),
-                                    "Modify Code".getBytes()
-                            );
-                            tmp = pincode.encodePincodePayload();
-                            data = new byte[1+tmp.length];
-                            data[0] = (byte) getStoragePincodeIndex();
-                            popNotice("PinCode index is " + ((int)(data[0] & (byte)0xff)));
-                            for (int i = 1 ; i < data.length ; i++) {
-                                data[i] = tmp[i-1];
-                            }
-                            commandWithStep(
-                                    CodeUtils.ModifyPinCode,
-                                    ((int)(data[0] & (byte)0xff)) + "",
-                                    (byte)data.length,
-                                    data
-                            );
-                        }
-                        break;
-                    case Constants.CMD_0xEE:
-                        if (!service.getLockStoragePincodeISSet()) {
-                            popNotice("you need to run 0xEA InquirePinCodeArray to get pincode status");
-                        } else {
-                            data = new byte[1];
-                            data[0] = (byte) getStoragePincodeIndex();
-                            popNotice("PinCode index is " + ((int)(data[0] & (byte)0xff)));
-                            commandWithStep(
-                                    CodeUtils.DeletePinCode,
-                                    ((int)(data[0] & (byte)0xff)) + "",
-                                    (byte)data.length,
-                                    data
-                            );
-                        }
-                        break;
-                    case Constants.CMD_0xEF:
-                        commandNormal(CodeUtils.HaveMangerPinCode,(byte) 0x00,new byte[]{});
-                        break;
-                    default:
-                        break;
-                }
-
-            }
-        });
+        command_button.setOnClickListener(command_click);
         return view;
     }
 
