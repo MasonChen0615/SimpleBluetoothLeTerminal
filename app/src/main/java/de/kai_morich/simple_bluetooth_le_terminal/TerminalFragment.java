@@ -449,13 +449,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
         for(int i = 0 ; i < 5 ; i++){
             command_arg[i].setVisibility(View.GONE);
-            command_arg[i].setTextSize(20);
+            command_arg[i].setTextSize(16);
             edit_command_arg[i].setVisibility(View.GONE);
             edit_command_arg[i].setText("");
             edit_command_arg[i].setInputType(InputType.TYPE_CLASS_TEXT);
-            edit_command_arg[i].setTextSize(20);
+            edit_command_arg[i].setTextSize(16);
             dy_mSpn[i].setVisibility(View.GONE);
-            arg_button[i].setTextSize(20);
+            arg_button[i].setTextSize(16);
             arg_button[i].setVisibility(View.GONE);
             arg_button[i].setGravity(Gravity.CENTER);
         }

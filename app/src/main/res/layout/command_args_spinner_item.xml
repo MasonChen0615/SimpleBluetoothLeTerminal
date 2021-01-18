@@ -3,10 +3,10 @@
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
     android:gravity="right"
-    android:padding="8dp"
+    android:padding="12dp"
     android:text="Hello!"
     android:textColor="#FFFFFF"
-    android:textSize="20sp"
+    android:textSize="16sp"
     android:textStyle="bold">
 
 </TextView>
