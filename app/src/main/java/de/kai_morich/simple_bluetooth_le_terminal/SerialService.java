@@ -15,12 +15,14 @@ import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
@@ -413,10 +415,11 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public SecretKey getConnectionAESKey(){
         synchronized (this) {
             if (this.connection_aes_key == null){
-                SecretKey key = new SecretKeySpec(this.lock_aes_key.getBytes(), 0, this.lock_aes_key.getBytes().length, "AES");
+                SecretKey key = new SecretKeySpec(this.lock_aes_key.getBytes(StandardCharsets.US_ASCII), 0, this.lock_aes_key.getBytes(StandardCharsets.US_ASCII).length, "AES");
                 return key;
             }else{
                 return this.connection_aes_key;
@@ -532,26 +535,31 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void printMessage(String message){
         String mymessage = Constants.EXCHANGE_MESSAGE_PREFIX + message + Constants.EXCHANGE_MESSAGE_PREFIX;
-        listener.onSerialRead(message.getBytes());
+        listener.onSerialRead(message.getBytes(StandardCharsets.US_ASCII));
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void exchangeToken(String token){
         String mytoken = Constants.EXCHANGE_LOCKTOKEN_PREFIX + token + Constants.EXCHANGE_LOCKTOKEN_PREFIX;
-        listener.onSerialRead(mytoken.getBytes());
+        listener.onSerialRead(mytoken.getBytes(StandardCharsets.US_ASCII));
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void exchangeTag(String tag){
         String mytag = tag + "TAG" + tag;
-        listener.onSerialRead(mytag.getBytes());
+        listener.onSerialRead(mytag.getBytes(StandardCharsets.US_ASCII));
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void exchangeData(String tag, String data){
         String mybase64 = Constants.EXCHANGE_DATA_PREFIX + tag + CodeUtils.encodeBase64(data) + tag + Constants.EXCHANGE_DATA_PREFIX;
-        listener.onSerialRead(mybase64.getBytes());
+        listener.onSerialRead(mybase64.getBytes(StandardCharsets.US_ASCII));
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     private Boolean checkCommandIncome(SunionCommandPayload commandPackage , byte target){
         if (commandPackage.getCommand() == target) {
             return true;
@@ -964,7 +972,7 @@ public class SerialService extends Service implements SerialListener {
                         printMessage( "enable:" + ( enable ? "true" : "false" ) );
                         printMessage( "once_use:" + ( once_use ? "true" : "false" ));
                         printMessage( "token:" + CodeUtils.bytesToHex(token));
-                        printMessage( "name:" + CodeUtils.bytesToHex(name));
+                        printMessage( "name:" + new String(name,StandardCharsets.US_ASCII));
                         printMessage(Constants.CMD_NAME_0xE5 + " status report end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xE5 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
@@ -987,7 +995,7 @@ public class SerialService extends Service implements SerialListener {
                                                 true,
                                                 true,
                                                 token,
-                                                getCurrentCommandStep().getBytes()
+                                                getCurrentCommandStep().getBytes(StandardCharsets.US_ASCII)
                                         )
                                 );
                                 setLockStorageTokenISSet(false);
@@ -1035,7 +1043,7 @@ public class SerialService extends Service implements SerialListener {
                         printMessage( "enable:" + ( enable ? "true" : "false" ) );
                         printMessage( "once_use:" + ( once_use ? "true" : "false" ));
                         printMessage( "token:" + CodeUtils.bytesToHex(token));
-                        printMessage( "name:" + CodeUtils.bytesToHex(name));
+                        printMessage( "name:" + new String(name,StandardCharsets.US_ASCII));
                         printMessage(Constants.CMD_NAME_0xE7 + " status report end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xE7 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));

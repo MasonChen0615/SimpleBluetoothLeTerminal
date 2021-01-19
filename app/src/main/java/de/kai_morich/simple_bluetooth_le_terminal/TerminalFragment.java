@@ -49,6 +49,7 @@ import androidx.fragment.app.Fragment;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -366,6 +367,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         builder.create().show();
     }
 
+    private View.OnClickListener command_customer_func = new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+        }
+    };
+
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     private void initPopupWindow() {
         View view = LayoutInflater.from(this.getContext()) .inflate(R.layout.popupwindow_layout, null);
         popupWindow = new PopupWindow(view); popupWindow.setWidth(ViewGroup.LayoutParams.WRAP_CONTENT); popupWindow.setHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -374,12 +382,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         popupWindow.setOutsideTouchable(false);
         popupWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         btnConfirm = (Button) view.findViewById(R.id.btnConform);
+
         View.OnClickListener btnConfirm_func = new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 switch (view.getId()) {
                     case R.id.btnConform:
                         //default
+                        command_customer_func.onClick(view);
                         command_click.onClick(view);
                         popupWindow.dismiss();
                         break;
@@ -484,17 +494,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xD1_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_TEXT);
                 edit_command_arg[0].setText(command_args.getDeviceName(true));
-                btnConfirm_func = new View.OnClickListener() {
+                command_customer_func = new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        switch (view.getId()) {
-                            case R.id.btnConform:
-                                //default
-                                command_args.setDeviceName(edit_command_arg[0].getText().toString());
-                                command_click.onClick(view);
-                                popupWindow.dismiss();
-                                break;
-                        }
+                        command_args.setDeviceName(edit_command_arg[0].getText().toString());
                     }
                 };
                 break;
@@ -504,7 +507,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xD3_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_NULL);
-                edit_command_arg[0].setText(CodeUtils.bytesToHex(command_args.getTime()));
+//                edit_command_arg[0].setText(CodeUtils.bytesToHex(command_args.getTime()));
                 break;
             case Constants.CMD_0xD5:
                 names = getResources().getStringArray(R.array.command_arg_D5_arg0);
@@ -541,67 +544,61 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[4].setHint(R.string.Command_CMD_0xD5_Arg4_Message);
                 edit_command_arg[4].setInputType(InputType.TYPE_CLASS_NUMBER);
                 edit_command_arg[4].setText("30");
-                btnConfirm_func = new View.OnClickListener() {
+                command_customer_func = new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        switch (view.getId()) {
-                            case R.id.btnConform:
-                                switch (dy_mSpn[0].getSelectedItemPosition()){
-                                    case 0:
-                                        command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_RIGHT;
-                                        break;
-                                    case 1:
-                                        command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_LEFT;
-                                        break;
-                                    case 2:
-                                        command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_UNKNOWN;
-                                        break;
-                                    case 3:
-                                        command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_NOT_TO_DO;
-                                        break;
-                                }
-                                for(int i = 1 ; i < 4 ; i++){
-                                    switch(i){
+                        switch (dy_mSpn[0].getSelectedItemPosition()){
+                            case 0:
+                                command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_RIGHT;
+                                break;
+                            case 1:
+                                command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_LEFT;
+                                break;
+                            case 2:
+                                command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_UNKNOWN;
+                                break;
+                            case 3:
+                                command_args.config_status.lock_status = SunionLockStatus.LOCK_STATUS_NOT_TO_DO;
+                                break;
+                        }
+                        for(int i = 1 ; i < 4 ; i++){
+                            switch(i){
+                                case 1:
+                                    switch(dy_mSpn[i].getSelectedItemPosition()){
+                                        case 0:
+                                            command_args.config_status.keypress_beep = SunionLockStatus.COMMON_ON;
+                                            break;
                                         case 1:
-                                            switch(dy_mSpn[i].getSelectedItemPosition()){
-                                                case 0:
-                                                    command_args.config_status.keypress_beep = SunionLockStatus.COMMON_ON;
-                                                    break;
-                                                case 1:
-                                                    command_args.config_status.keypress_beep = SunionLockStatus.COMMON_OFF;
-                                                    break;
-                                            }
-                                            break;
-                                        case 2:
-                                            switch(dy_mSpn[i].getSelectedItemPosition()){
-                                                case 0:
-                                                    command_args.config_status.vacation_mode = SunionLockStatus.COMMON_ON;
-                                                    break;
-                                                case 1:
-                                                    command_args.config_status.vacation_mode = SunionLockStatus.COMMON_OFF;
-                                                    break;
-                                            }
-                                            break;
-                                        case 3:
-                                            switch(dy_mSpn[i].getSelectedItemPosition()){
-                                                case 0:
-                                                    command_args.config_status.autolock = SunionLockStatus.COMMON_ON;
-                                                    break;
-                                                case 1:
-                                                    command_args.config_status.autolock = SunionLockStatus.COMMON_OFF;
-                                                    break;
-                                            }
+                                            command_args.config_status.keypress_beep = SunionLockStatus.COMMON_OFF;
                                             break;
                                     }
-                                }
-                                try {
-                                    command_args.config_status.setAutoLockDelay(Integer.parseInt(edit_command_arg[4].getText().toString()));
-                                } catch (NumberFormatException e){
-                                    command_args.config_status.setAutoLockDelay(30);
-                                }
-                                command_click.onClick(view);
-                                popupWindow.dismiss();
-                                break;
+                                    break;
+                                case 2:
+                                    switch(dy_mSpn[i].getSelectedItemPosition()){
+                                        case 0:
+                                            command_args.config_status.vacation_mode = SunionLockStatus.COMMON_ON;
+                                            break;
+                                        case 1:
+                                            command_args.config_status.vacation_mode = SunionLockStatus.COMMON_OFF;
+                                            break;
+                                    }
+                                    break;
+                                case 3:
+                                    switch(dy_mSpn[i].getSelectedItemPosition()){
+                                        case 0:
+                                            command_args.config_status.autolock = SunionLockStatus.COMMON_ON;
+                                            break;
+                                        case 1:
+                                            command_args.config_status.autolock = SunionLockStatus.COMMON_OFF;
+                                            break;
+                                    }
+                                    break;
+                            }
+                        }
+                        try {
+                            command_args.config_status.setAutoLockDelay(Integer.parseInt(edit_command_arg[4].getText().toString()));
+                        } catch (NumberFormatException e){
+                            command_args.config_status.setAutoLockDelay(30);
                         }
                     }
                 };
@@ -618,21 +615,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 adapter.setDropDownViewResource( R.layout.command_args_spinner_item);
                 dy_mSpn[0].setAdapter(adapter);
                 dy_mSpn[0].setVisibility(View.VISIBLE);
-                btnConfirm_func = new View.OnClickListener() {
+                command_customer_func = new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        switch (view.getId()) {
-                            case R.id.btnConform:
-                                switch (dy_mSpn[0].getSelectedItemPosition()){
-                                    case 0:
-                                        command_args.config_status.dead_bolt = SunionLockStatus.DEAD_BOLT_LOCK;
-                                        break;
-                                    case 1:
-                                        command_args.config_status.dead_bolt = SunionLockStatus.DEAD_BOLT_UNLOCK;
-                                        break;
-                                }
-                                command_click.onClick(view);
-                                popupWindow.dismiss();
+                        switch (dy_mSpn[0].getSelectedItemPosition()){
+                            case 0:
+                                command_args.config_status.dead_bolt = SunionLockStatus.DEAD_BOLT_LOCK;
+                                break;
+                            case 1:
+                                command_args.config_status.dead_bolt = SunionLockStatus.DEAD_BOLT_UNLOCK;
                                 break;
                         }
                     }
@@ -644,19 +635,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xE1_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
-                btnConfirm_func = new View.OnClickListener() {
+                edit_command_arg[0].setText(command_args.getLogIndex(true)+"");
+                command_customer_func = new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        switch (view.getId()) {
-                            case R.id.btnConform:
-                                try {
-                                    command_args.setLogIndex(Integer.parseInt(edit_command_arg[0].getText().toString()));
-                                } catch (NumberFormatException e){
-                                    command_args.setLogIndex(0);
-                                }
-                                command_click.onClick(view);
-                                popupWindow.dismiss();
-                                break;
+                        try {
+                            command_args.setLogIndex(Integer.parseInt(edit_command_arg[0].getText().toString()));
+                        } catch (NumberFormatException e){
+                            command_args.setLogIndex(0);
                         }
                     }
                 };
@@ -667,19 +653,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xE2_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
-                btnConfirm_func = new View.OnClickListener() {
+                edit_command_arg[0].setText(command_args.getLogCount()+"");
+                command_customer_func = new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        switch (view.getId()) {
-                            case R.id.btnConform:
-                                try {
-                                    command_args.setLogCount(Integer.parseInt(edit_command_arg[0].getText().toString()));
-                                } catch (NumberFormatException e){
-                                    command_args.setLogCount(1);
-                                }
-                                command_click.onClick(view);
-                                popupWindow.dismiss();
-                                break;
+                        try {
+                            command_args.setLogCount(Integer.parseInt(edit_command_arg[0].getText().toString()));
+                        } catch (NumberFormatException e){
+                            command_args.setLogCount(1);
                         }
                     }
                 };
@@ -690,6 +671,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xE5_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[0].setText(command_args.getTokenIndex(true)+"");
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        try {
+                            command_args.setTokenIndex(Integer.parseInt(edit_command_arg[0].getText().toString()));
+                        } catch (NumberFormatException e){
+                            command_args.setTokenIndex(0);
+                        }
+                    }
+                };
                 break;
             case Constants.CMD_0xE6:
                 command_arg[0].setVisibility(View.VISIBLE);
@@ -697,17 +689,39 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xE6_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_TEXT);
+                edit_command_arg[0].setText(new String(command_args.token.getTokenName(), StandardCharsets.US_ASCII));
+                command_customer_func = new View.OnClickListener() {
+                    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+                    @Override
+                    public void onClick(View view) {
+                        command_args.token.setTokenName(edit_command_arg[0].getText().toString());
+                    }
+                };
                 break;
             case Constants.CMD_0xE7:
                 command_arg[0].setVisibility(View.VISIBLE);
                 command_arg[0].setText(R.string.Command_CMD_0xE7_Arg0);
-                command_arg[0].setText(R.string.Command_CMD_0xE7_Arg1);
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xE7_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[0].setText(command_args.getTokenIndex(false)+"");
+                command_arg[1].setVisibility(View.VISIBLE);
+                command_arg[1].setText(R.string.Command_CMD_0xE7_Arg1);
                 edit_command_arg[1].setVisibility(View.VISIBLE);
                 edit_command_arg[1].setHint(R.string.Command_CMD_0xE7_Arg1_Message);
                 edit_command_arg[1].setInputType(InputType.TYPE_CLASS_TEXT);
+                edit_command_arg[1].setText(new String(command_args.token.getTokenName(), StandardCharsets.US_ASCII));
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        try {
+                            command_args.setTokenIndex(Integer.parseInt(edit_command_arg[0].getText().toString()));
+                        } catch (NumberFormatException e){
+                            command_args.setTokenIndex(0);
+                        }
+                        command_args.token.setTokenName(edit_command_arg[1].getText().toString());
+                    }
+                };
                 break;
             case Constants.CMD_0xE8:
                 command_arg[0].setVisibility(View.VISIBLE);
@@ -715,6 +729,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xE8_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[0].setText(command_args.getTokenIndex(false)+"");
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        try {
+                            command_args.setTokenIndex(Integer.parseInt(edit_command_arg[0].getText().toString()));
+                        } catch (NumberFormatException e){
+                            command_args.setTokenIndex(0);
+                        }
+                    }
+                };
                 break;
             case Constants.CMD_0xEB:
                 command_arg[0].setVisibility(View.VISIBLE);
@@ -722,6 +747,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xEB_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[0].setText(command_args.getPincodeIndex(true)+"");
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        try {
+                            command_args.setPincodeIndex(Integer.parseInt(edit_command_arg[0].getText().toString()));
+                        } catch (NumberFormatException e){
+                            command_args.setPincodeIndex(0);
+                        }
+                    }
+                };
                 break;
             case Constants.CMD_0xEC:
             case Constants.CMD_0xED:
@@ -731,6 +767,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xEC_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[0].setText(command_args.getPincodeIndex(false)+"");
                 //Enable
                 command_arg[1].setVisibility(View.VISIBLE);
                 command_arg[1].setText(R.string.Command_CMD_0xEC_Arg1);
@@ -749,6 +786,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[2].setVisibility(View.VISIBLE);
                 edit_command_arg[2].setHint(R.string.Command_CMD_0xEC_Arg2_Message);
                 edit_command_arg[2].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[2].setText(command_args.pincode.getReadablePincode());
                 //Schedule
                 command_arg[3].setVisibility(View.VISIBLE);
                 command_arg[3].setText(R.string.Command_CMD_0xEC_Arg3);
@@ -767,6 +805,21 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[4].setVisibility(View.VISIBLE);
                 edit_command_arg[4].setHint(R.string.Command_CMD_0xEC_Arg4_Message);
                 edit_command_arg[4].setInputType(InputType.TYPE_CLASS_TEXT);
+                edit_command_arg[4].setText(new String(command_args.pincode.name,StandardCharsets.US_ASCII));
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        try {
+                            command_args.setPincodeIndex(Integer.parseInt(edit_command_arg[0].getText().toString()));
+                        } catch (NumberFormatException e){
+                            command_args.setPincodeIndex(0);
+                        }
+                        command_args.pincode.enable  = (dy_mSpn[1].getSelectedItemPosition() == 0)? true : false;
+                        command_args.pincode.setPincode(edit_command_arg[2].getText().toString());
+                        command_args.pincode.schedule = command_args.schedule;
+                        command_args.pincode.setName(edit_command_arg[4].getText().toString());
+                    }
+                };
                 break;
             case Constants.CMD_0xEE:
                 command_arg[0].setVisibility(View.VISIBLE);
@@ -774,6 +827,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setVisibility(View.VISIBLE);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xEE_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[0].setText(command_args.getPincodeIndex(false)+"");
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        try {
+                            command_args.setPincodeIndex(Integer.parseInt(edit_command_arg[0].getText().toString()));
+                        } catch (NumberFormatException e){
+                            command_args.setPincodeIndex(0);
+                        }
+                    }
+                };
                 break;
             case Constants.CMD_0xCC:
             case Constants.CMD_0xCE:
@@ -797,6 +861,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private View.OnClickListener command_click = new View.OnClickListener() {
+        @RequiresApi(api = Build.VERSION_CODES.KITKAT)
         @Override
         public void onClick(View view) {
             sendText.setText("");
@@ -830,8 +895,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         commandWithStep(
                                 CodeUtils.Connect,
                                 CodeUtils.Connect_UsingOnceTokenConnect,
-                                (byte)service.lock_token.length(),
-                                service.lock_token.getBytes()
+                                (byte)service.lock_token.getBytes(StandardCharsets.US_ASCII).length,
+                                service.lock_token.getBytes(StandardCharsets.US_ASCII)
                         );
                     }
                     break;
@@ -845,7 +910,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     commandNormal(CodeUtils.InquireLockName,(byte) 0x00,new byte[]{});
                     break;
                 case Constants.CMD_0xD1:
-                    data = command_args.getDeviceName(false).getBytes();
+                    data = command_args.getDeviceName(false).getBytes(StandardCharsets.US_ASCII);
                     commandNormal(CodeUtils.SetLockName,(byte) data.length,data);
                     break;
                 case Constants.CMD_0xD2:
@@ -943,8 +1008,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                         commandWithStep(
                                 CodeUtils.NewOnceToken,
                                 test_name,
-                                (byte)test_name.length(),
-                                test_name.getBytes()
+                                (byte)test_name.getBytes(StandardCharsets.US_ASCII).length,
+                                test_name.getBytes(StandardCharsets.US_ASCII)
                         );
                     }
                     break;
@@ -954,7 +1019,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     } else {
                         random_name = new Random().nextInt((999 - 100) + 1) + 100;
                         test_name = "Modify Token-" + random_name ;
-                        tmp = test_name.getBytes();
+                        tmp = test_name.getBytes(StandardCharsets.US_ASCII);
                         data = new byte[test_name.length() + 1];
                         data[0] = (byte) getStorageTokenIndex();
                         popNotice("Modify Token index is " + ((int)(data[0] & (byte)0xff)));
@@ -1025,7 +1090,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                                             SunionPincodeSchedule.SEEK_TIME_MIN,
                                             SunionPincodeSchedule.SEEK_TIME_MAX
                                     ),
-                                    "Hello!".getBytes()
+                                    "Hello!".getBytes(StandardCharsets.US_ASCII)
                             );
 
                         } else {
@@ -1041,7 +1106,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                                             SunionPincodeSchedule.SEEK_TIME_MIN,
                                             SunionPincodeSchedule.SEEK_TIME_MAX
                                     ),
-                                    "Hello!".getBytes()
+                                    "Hello!".getBytes(StandardCharsets.US_ASCII)
                             );
                         }
                         tmp = pincode.encodePincodePayload();
@@ -1081,7 +1146,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                                             SunionPincodeSchedule.SEEK_TIME_MIN,
                                             SunionPincodeSchedule.SEEK_TIME_MAX
                                     ),
-                                    "Modify Code".getBytes()
+                                    "Modify Code".getBytes(StandardCharsets.US_ASCII)
                             );
                         } else if (index == (byte)0x02){
                             byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
@@ -1096,7 +1161,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                                             SunionPincodeSchedule.SEEK_TIME_MIN,
                                             SunionPincodeSchedule.SEEK_TIME_MAX
                                     ),
-                                    "Modify Code".getBytes()
+                                    "Modify Code".getBytes(StandardCharsets.US_ASCII)
                             );
                         } else if (index == (byte)0x03){
                             byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
@@ -1111,7 +1176,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                                             SunionPincodeSchedule.SEEK_TIME_MIN,
                                             SunionPincodeSchedule.SEEK_TIME_MAX
                                     ),
-                                    "Hello!".getBytes()
+                                    "Modify Code".getBytes(StandardCharsets.US_ASCII)
                             );
                         } else {
                             byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
@@ -1126,7 +1191,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                                             SunionPincodeSchedule.SEEK_TIME_MIN,
                                             SunionPincodeSchedule.SEEK_TIME_MAX
                                     ),
-                                    "Modify Code".getBytes()
+                                    "Modify Code".getBytes(StandardCharsets.US_ASCII)
                             );
                         }
                         tmp = pincode.encodePincodePayload();
@@ -1225,12 +1290,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         command_step = CodeUtils.Command_Initialization;
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     private void commandC0(){
         try {
             KeyGenerator keygen = KeyGenerator.getInstance("AES");
             keygen.init(128);
             SecretKey randomkey = keygen.generateKey();
-            SecretKey key = new SecretKeySpec(service.lock_aes_key.getBytes(), 0, service.lock_aes_key.getBytes().length, "AES");
+            SecretKey key = new SecretKeySpec(service.lock_aes_key.getBytes(StandardCharsets.US_ASCII), 0, service.lock_aes_key.getBytes(StandardCharsets.US_ASCII).length, "AES");
             byte[] command = CodeUtils.encodeAES(
                     key,
                     CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
@@ -1591,6 +1657,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).edit().putString(CodeUtils.ConnectionTokenFileName,CodeUtils.bytesToHex(token)).commit();
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     private byte[] readToken(){
         String s = this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).getString(CodeUtils.ConnectionTokenFileName, "");
         if ( CodeUtils.isHexString(s) ){
@@ -1599,10 +1666,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 service.setSecretLockToken(new SunionToken(1,token));
                 return token;
             } else {
-                return service.lock_token.getBytes();
+                return service.lock_token.getBytes(StandardCharsets.US_ASCII);
             }
         } else {
-            return service.lock_token.getBytes();
+            return service.lock_token.getBytes(StandardCharsets.US_ASCII);
         }
     }
 
