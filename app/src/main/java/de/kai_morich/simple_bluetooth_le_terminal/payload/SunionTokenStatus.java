@@ -1,5 +1,11 @@
 package de.kai_morich.simple_bluetooth_le_terminal.payload;
 
+import android.os.Build;
+
+import androidx.annotation.RequiresApi;
+
+import java.nio.charset.StandardCharsets;
+
 public class SunionTokenStatus {
 
     private Boolean enable = false;
@@ -11,6 +17,7 @@ public class SunionTokenStatus {
     public static final String ONCE_USE = "ONCE_USE";
     public static final String TOKEN = "TOKEN";
     public static final String NAME = "NAME";
+    public static final int NAME_MAX_SIZE = 20;
 
     public SunionTokenStatus(){
         this.enable = false;
@@ -32,6 +39,17 @@ public class SunionTokenStatus {
     }
     public byte[] getToken(){
         return this.token;
+    }
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    public void setTokenName(String name){
+        if (name.length() > SunionTokenStatus.NAME_MAX_SIZE){
+            String tmp  = name.substring(0,19);
+            this.name = tmp.getBytes(StandardCharsets.US_ASCII);
+        } else if (name.length() <= 0) {
+            this.name = "".getBytes(StandardCharsets.US_ASCII);
+        } else {
+            this.name = name.getBytes(StandardCharsets.US_ASCII);
+        }
     }
     public byte[] getTokenName(){
         return this.name;

@@ -15,12 +15,15 @@ import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
@@ -413,10 +416,11 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public SecretKey getConnectionAESKey(){
         synchronized (this) {
             if (this.connection_aes_key == null){
-                SecretKey key = new SecretKeySpec(this.lock_aes_key.getBytes(), 0, this.lock_aes_key.getBytes().length, "AES");
+                SecretKey key = new SecretKeySpec(this.lock_aes_key.getBytes(StandardCharsets.US_ASCII), 0, this.lock_aes_key.getBytes(StandardCharsets.US_ASCII).length, "AES");
                 return key;
             }else{
                 return this.connection_aes_key;
@@ -532,33 +536,38 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void printMessage(String message){
         String mymessage = Constants.EXCHANGE_MESSAGE_PREFIX + message + Constants.EXCHANGE_MESSAGE_PREFIX;
-        listener.onSerialRead(message.getBytes());
+        listener.onSerialRead(message.getBytes(StandardCharsets.US_ASCII));
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void exchangeToken(String token){
         String mytoken = Constants.EXCHANGE_LOCKTOKEN_PREFIX + token + Constants.EXCHANGE_LOCKTOKEN_PREFIX;
-        listener.onSerialRead(mytoken.getBytes());
+        listener.onSerialRead(mytoken.getBytes(StandardCharsets.US_ASCII));
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void exchangeTag(String tag){
         String mytag = tag + "TAG" + tag;
-        listener.onSerialRead(mytag.getBytes());
+        listener.onSerialRead(mytag.getBytes(StandardCharsets.US_ASCII));
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void exchangeData(String tag, String data){
         String mybase64 = Constants.EXCHANGE_DATA_PREFIX + tag + CodeUtils.encodeBase64(data) + tag + Constants.EXCHANGE_DATA_PREFIX;
-        listener.onSerialRead(mybase64.getBytes());
+        listener.onSerialRead(mybase64.getBytes(StandardCharsets.US_ASCII));
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     private Boolean checkCommandIncome(SunionCommandPayload commandPackage , byte target){
         if (commandPackage.getCommand() == target) {
             return true;
         } else if (commandPackage.getCommand() == CodeUtils.HaveMangerPinCode) {
             byte[] payload = commandPackage.getData();
             if (payload.length == 1) {
-                if (payload[0] == (byte) 0x01) {
+                if (payload[0] == (byte) 0x00) {
                     setLockStoragePincodeAdminRequire(true);
                     printMessage(Constants.CMD_NAME_0xEF + " need set admin pincode.");
                 } else {
@@ -771,18 +780,27 @@ public class SerialService extends Service implements SerialListener {
             case CodeUtils.InquireLockConfig:
                 if (checkCommandIncome(commandPackage,CodeUtils.InquireLockConfig)){
                     byte[] payload = commandPackage.getData();
-                    if (payload.length == 5) {
+                    if (payload.length == 21) {
 //                        1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知
 //                        2	1	聲音 1:開啟, 0:關閉
 //                        3	1	假期模式 1:開啟, 0:關閉
 //                        4	1	自動上鎖 1:開啟, 0:關閉
 //                        5	1	自動上鎖時間 10~99
+//                        6 ~ 21 location
                         printMessage(Constants.CMD_NAME_0xD4 + " config start");
                         printMessage("lock status:" + CodeUtils.bytesToHex( new byte[]{payload[0]}));
                         printMessage("keypress beep:" + CodeUtils.bytesToHex( new byte[]{payload[1]}));
                         printMessage("vacation mode:" + CodeUtils.bytesToHex( new byte[]{payload[2]}));
                         printMessage("autolock:" + CodeUtils.bytesToHex( new byte[]{payload[3]}));
                         printMessage("autolock delay:" + CodeUtils.bytesToHex( new byte[]{payload[4]}));
+                        byte[] location = new byte[16];
+                        for (int i = 0 ; i < 16 ; i++){
+                            location[i] = payload[i+5];
+                        }
+                        double[] decode_location = SunionLockStatus.decodeGeographicLocation(location);
+                        DecimalFormat df = new DecimalFormat("###.#####");
+                        printMessage("latitude:" + df.format(decode_location[SunionLockStatus.LATITUDE]));
+                        printMessage("longitude:" + df.format(decode_location[SunionLockStatus.LONGITUDE]));
                         printMessage(Constants.CMD_NAME_0xD4 + " config end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xD4 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
@@ -964,7 +982,7 @@ public class SerialService extends Service implements SerialListener {
                         printMessage( "enable:" + ( enable ? "true" : "false" ) );
                         printMessage( "once_use:" + ( once_use ? "true" : "false" ));
                         printMessage( "token:" + CodeUtils.bytesToHex(token));
-                        printMessage( "name:" + CodeUtils.bytesToHex(name));
+                        printMessage( "name:" + new String(name,StandardCharsets.US_ASCII));
                         printMessage(Constants.CMD_NAME_0xE5 + " status report end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xE5 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
@@ -987,7 +1005,7 @@ public class SerialService extends Service implements SerialListener {
                                                 true,
                                                 true,
                                                 token,
-                                                getCurrentCommandStep().getBytes()
+                                                getCurrentCommandStep().getBytes(StandardCharsets.US_ASCII)
                                         )
                                 );
                                 setLockStorageTokenISSet(false);
@@ -1035,7 +1053,7 @@ public class SerialService extends Service implements SerialListener {
                         printMessage( "enable:" + ( enable ? "true" : "false" ) );
                         printMessage( "once_use:" + ( once_use ? "true" : "false" ));
                         printMessage( "token:" + CodeUtils.bytesToHex(token));
-                        printMessage( "name:" + CodeUtils.bytesToHex(name));
+                        printMessage( "name:" + new String(name,StandardCharsets.US_ASCII));
                         printMessage(Constants.CMD_NAME_0xE7 + " status report end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xE7 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
@@ -1170,9 +1188,11 @@ public class SerialService extends Service implements SerialListener {
                     byte[] payload = commandPackage.getData();
                     if (payload.length == 1) {
                         if ( payload[0] == (byte) 0x01 ) {
-                            printMessage(Constants.CMD_NAME_0xEF + " allow");
+                            printMessage(Constants.CMD_NAME_0xEF + " have");
+                            setLockStoragePincodeAdminRequire(false);
                         } else if ( payload[0] == (byte) 0x00 ) {
-                            printMessage(Constants.CMD_NAME_0xEF + " reject");
+                            printMessage(Constants.CMD_NAME_0xEF + " not have");
+                            setLockStoragePincodeAdminRequire(true);
                         } else {
                             printMessage(Constants.CMD_NAME_0xEF + " unknown return : " + CodeUtils.bytesToHex(payload));
                         }

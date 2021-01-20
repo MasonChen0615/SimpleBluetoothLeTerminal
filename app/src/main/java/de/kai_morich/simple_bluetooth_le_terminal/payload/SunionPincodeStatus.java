@@ -1,5 +1,7 @@
 package de.kai_morich.simple_bluetooth_le_terminal.payload;
 
+import java.nio.charset.StandardCharsets;
+
 import de.kai_morich.simple_bluetooth_le_terminal.CodeUtils;
 
 //    1	1	Enable 1:可使用, 0:不可使用
@@ -8,11 +10,11 @@ import de.kai_morich.simple_bluetooth_le_terminal.CodeUtils;
 //    (4+len) ~ (15+len)	12	Schedule
 //    (16+len) ~	(最多 20 Byte)	Name
 public class SunionPincodeStatus {
-    private Boolean enable;
-    private byte[] pincode;
-    private byte[] row_schedule;
-    private SunionPincodeSchedule schedule;
-    private byte[] name;
+    public Boolean enable;
+    public byte[] pincode;
+    public byte[] row_schedule;
+    public SunionPincodeSchedule schedule;
+    public byte[] name;
 
     private static final String DATA_TAG_ENABLE = "DATA_TAG_ENABLE";
     private static final String DATA_TAG_PINCODE_LEN = "DATA_TAG_PINCODE_LEN";
@@ -30,6 +32,11 @@ public class SunionPincodeStatus {
     public static final byte PWD_7 = (byte) 0x07;
     public static final byte PWD_8 = (byte) 0x08;
     public static final byte PWD_9 = (byte) 0x09;
+
+    public static final int MAX_PINCODE_SIZE = 6;
+    public static final byte[] DEFAULT_PINCODE = new byte[]{PWD_0, PWD_0, PWD_0, PWD_0};
+    public static final int MAX_NAME_SIZE = 20;
+    public static final byte[] DEFAULT_NAME = "PINCODE".getBytes(StandardCharsets.US_ASCII);
 
     public SunionPincodeStatus (){}
     public SunionPincodeStatus (Boolean enable){
@@ -108,14 +115,55 @@ public class SunionPincodeStatus {
         return pincode;
     }
 
+    public void setName(String str){
+        byte[] name = str.getBytes(StandardCharsets.US_ASCII);
+        if (name.length > MAX_NAME_SIZE){
+            this.name = new byte[MAX_NAME_SIZE];
+        } else if (name.length > 0){
+            this.name = new byte[name.length];
+        } else {
+            this.name = DEFAULT_NAME;
+        }
+        if (name.length > 0){
+            for(int i = 0 ; i < this.name.length ; i++){
+                this.name[i] = name[i];
+            }
+        }
+    }
+
+    public void setPincode(String number_str){
+        byte[] code = number_str.getBytes(StandardCharsets.US_ASCII);
+        if (code.length > MAX_PINCODE_SIZE){
+            this.pincode = new byte[MAX_PINCODE_SIZE];
+        } else if (code.length > 0){
+            this.pincode = new byte[code.length];
+        } else {
+            this.pincode = DEFAULT_PINCODE;
+        }
+        if (code.length > 0){
+            for(int i = 0 ; i < this.pincode.length ; i++){
+                this.pincode[i] = (byte) (code[i] - (byte)0x30);
+            }
+        }
+    }
+
+    public String getReadablePincode(){
+        byte[] code = new byte[pincode.length];
+        for(int i = 0 ; i < this.pincode.length ; i++){
+            //ascii 0x30 ~ 0x39
+            code[i] = (byte) (this.pincode[i] + 0x30);
+        }
+        return new String(code, StandardCharsets.US_ASCII);
+    }
+
     @Override
     public String toString(){
         String message = "enable:" + (this.enable?"true":"false") + "\n";
         if (this.name != null) {
-            message += "name:" + CodeUtils.bytesToHex(this.name)+ "\n";
+            message += "name:" + new String(this.name,StandardCharsets.US_ASCII) + "\n";
         }
         if (this.pincode != null) {
-            message += "pincode:" + CodeUtils.bytesToHex(this.pincode)+ "\n";
+            message += "pincode:" + getReadablePincode() + "\n";
         }
         message += "schedule:" + this.schedule.toString();
         return message;

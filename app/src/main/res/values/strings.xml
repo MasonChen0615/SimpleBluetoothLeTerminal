@@ -27,8 +27,7 @@
     <string name="Command_CMD_0xD1_Arg0">鎖體名稱</string>
     <string name="Command_CMD_0xD1_Arg0_Message">1 ~ 20 Byte</string>
     <string name="Command_CMD_0xD3_Arg0">TimeStamp (Unix)</string>
-    <string name="Command_CMD_0xD3_Arg0_Message">auto convert to uint32_t Little-endian</string>
-
+    <string name="Command_CMD_0xD3_Arg0_Message">auto grant convert to uint32_t Little-endian</string>
     <string name="Command_CMD_0xD5_Arg0">鎖體方向</string>
     <string name="Command_CMD_0xD5_Arg1">聲音</string>
     <string name="Command_CMD_0xD5_Arg2">假期模式</string>
