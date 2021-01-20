@@ -8,12 +8,11 @@ import de.kai_morich.simple_bluetooth_le_terminal.CodeUtils;
 public class SunionControlStatus {
     private byte config_type = 0;
     private int index = 0;
-    private int count = 0;
+    private int count = 1;
     private int storage_pincode_index = 0;
     private int storage_token_index = 0;
     private int storage_log_index = 0;
     private int storage_log_index_current_number = 0;
-//    private byte[] pincode = new byte[]{SunionPincodeStatus.PWD_0, SunionPincodeStatus.PWD_0, SunionPincodeStatus.PWD_0, SunionPincodeStatus.PWD_0};
 
     public SunionPincodeStatus pincode;
     public SunionPincodeSchedule schedule;
@@ -23,8 +22,8 @@ public class SunionControlStatus {
 
     public static final int max_pincode_index = 201;
     public static final int max_token_index = 10;
-    public static final String PINCODE_NEW_PREFIX = "New";
-    public static final String PINCODE_MODIFY_PREFIX = "Modify";
+    public static final String NEW_PREFIX = "New";
+    public static final String MODIFY_PREFIX = "Modify";
 
     public SunionControlStatus(){
         byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
@@ -48,13 +47,13 @@ public class SunionControlStatus {
                 true,
                 true,
                 "Token".getBytes(StandardCharsets.US_ASCII),
-                getRandomTokenName().getBytes(StandardCharsets.US_ASCII)
+                getRandomTokenName(NEW_PREFIX).getBytes(StandardCharsets.US_ASCII)
         );
         this.pincode = new SunionPincodeStatus(
                 true,
                 SunionPincodeStatus.DEFAULT_PINCODE,
                 this.schedule,
-                getRandomPincodeName(PINCODE_NEW_PREFIX).getBytes(StandardCharsets.US_ASCII)
+                getRandomPincodeName(NEW_PREFIX).getBytes(StandardCharsets.US_ASCII)
         );
     }
 
@@ -78,7 +77,7 @@ public class SunionControlStatus {
                 storage_log_index = 0;
                 return storage_log_index;
             } else {
-                return storage_log_index++;
+                return ++storage_log_index;
             }
         } else {
             return storage_log_index;
@@ -113,7 +112,7 @@ public class SunionControlStatus {
                 storage_token_index = 0;
                 return storage_token_index;
             } else {
-                return storage_token_index++;
+                return ++storage_token_index;
             }
         } else {
             return storage_token_index;
@@ -136,7 +135,7 @@ public class SunionControlStatus {
                 storage_pincode_index = 0;
                 return storage_pincode_index;
             } else {
-                return storage_pincode_index++;
+                return ++storage_pincode_index;
             }
         } else {
             return storage_pincode_index;
@@ -147,9 +146,9 @@ public class SunionControlStatus {
         this.device_name = device_name;
     }
 
-    public String getRandomTokenName(){
+    public String getRandomTokenName(String prefix){
         int random_name = new Random().nextInt((999 - 100) + 1) + 100;
-        return "TestTokenName-" + random_name;
+        return prefix + "-Token-" + random_name;
     }
 
     public String getRandomPincodeName(String prefix){

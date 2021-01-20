@@ -23,6 +23,7 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
@@ -779,18 +780,27 @@ public class SerialService extends Service implements SerialListener {
             case CodeUtils.InquireLockConfig:
                 if (checkCommandIncome(commandPackage,CodeUtils.InquireLockConfig)){
                     byte[] payload = commandPackage.getData();
-                    if (payload.length == 5) {
+                    if (payload.length == 21) {
 //                        1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知
 //                        2	1	聲音 1:開啟, 0:關閉
 //                        3	1	假期模式 1:開啟, 0:關閉
 //                        4	1	自動上鎖 1:開啟, 0:關閉
 //                        5	1	自動上鎖時間 10~99
+//                        6 ~ 21 location
                         printMessage(Constants.CMD_NAME_0xD4 + " config start");
                         printMessage("lock status:" + CodeUtils.bytesToHex( new byte[]{payload[0]}));
                         printMessage("keypress beep:" + CodeUtils.bytesToHex( new byte[]{payload[1]}));
                         printMessage("vacation mode:" + CodeUtils.bytesToHex( new byte[]{payload[2]}));
                         printMessage("autolock:" + CodeUtils.bytesToHex( new byte[]{payload[3]}));
                         printMessage("autolock delay:" + CodeUtils.bytesToHex( new byte[]{payload[4]}));
+                        byte[] location = new byte[16];
+                        for (int i = 0 ; i < 16 ; i++){
+                            location[i] = payload[i+5];
+                        }
+                        double[] decode_location = SunionLockStatus.decodeGeographicLocation(location);
+                        DecimalFormat df = new DecimalFormat("###.#####");
+                        printMessage("latitude:" + df.format(decode_location[SunionLockStatus.LATITUDE]));
+                        printMessage("longitude:" + df.format(decode_location[SunionLockStatus.LONGITUDE]));
                         printMessage(Constants.CMD_NAME_0xD4 + " config end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xD4 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
