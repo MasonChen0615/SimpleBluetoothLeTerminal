@@ -43,7 +43,7 @@ public class SerialService extends Service implements SerialListener {
 
     public String lock_token = "85121456";
     public String lock_aes_key = "SUNION_8512-6108";
-    public SunionToken secret_lock_token = new SunionToken(0,new byte[]{});
+    public SunionTokenStatus secret_lock_token = new SunionTokenStatus();
     private byte[] app_random_aes_key;
     private byte[] device_random_aes_key;
     private SecretKey connection_aes_key = null;
@@ -452,13 +452,13 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
-    public void setSecretLockToken(SunionToken token){
+    public void setSecretLockToken(SunionTokenStatus token){
         synchronized (this) {
             secret_lock_token = token;
         }
     }
 
-    public SunionToken getSecretLockToken(){
+    public SunionTokenStatus getSecretLockToken(){
         synchronized (this) {
             return secret_lock_token;
         }
@@ -674,9 +674,14 @@ public class SerialService extends Service implements SerialListener {
                             }
                         } else if (commandPackage.getCommand() == CodeUtils.InquireToken) {
                             byte[] payload = commandPackage.getData();
-                            SunionToken tmp = SunionToken.decodeTokenPayload(payload);
-                            setSecretLockToken(new SunionToken(1, tmp.getToken()));
-                            exchangeToken("Exchange");
+                            try {
+                                SunionTokenStatus secretlocktoken = SunionTokenStatus.decodeTokenPayload(payload);
+                                setSecretLockToken(secretlocktoken);
+                                exchangeToken("Exchange");
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                printMessage(CodeUtils.Connect_UsingOnceTokenConnect + e.getMessage());
+                            }
                             resetCommandState();
                             Log.i(Constants.DEBUG_TAG, "release resetCommandState where receive InquireToken in Connect_UsingOnceTokenConnect at InquireToken");
                         } else {
@@ -955,37 +960,20 @@ public class SerialService extends Service implements SerialListener {
                     byte[] payload = commandPackage.getData();
                     int index = Integer.parseInt(getCurrentCommandStep());
                     printMessage( "index:" + index );
-                    if (payload.length >= 10) {
-//                        1	1	是否可用 1:可用, 0:不可用
-//                        2	1	是否是永久 Token 1:永久, 0:一次性
-//                        3 ~10	8	Token
-//                        11 ~	(最多 20 Byte)	Name
-                        Boolean enable = (payload[0] == ((byte) 0x01)) ? true : false;
-                        Boolean once_use = (payload[1] == ((byte) 0x00)) ? true : false;
-                        byte[] token = new byte[]{payload[2],payload[3],payload[4],payload[5],payload[6],payload[7],payload[8],payload[9]};
-                        byte[] name = new byte[payload.length - 10];
-                        for(int i = 10 ; i < payload.length ; i++ ){
-                            name[i-10] = payload[i];
-                        }
+                    try {
+                        SunionTokenStatus my_token = SunionTokenStatus.decodeTokenPayload(payload);
                         if (index >= 0 && index < 10){
                             setLockStorageToken(
                                     index,
-                                    new SunionTokenStatus(
-                                            enable,
-                                            once_use,
-                                            token,
-                                            name
-                                    )
+                                    my_token
                             );
                         }
                         printMessage(Constants.CMD_NAME_0xE5 + " status report start");
-                        printMessage( "enable:" + ( enable ? "true" : "false" ) );
-                        printMessage( "once_use:" + ( once_use ? "true" : "false" ));
-                        printMessage( "token:" + CodeUtils.bytesToHex(token));
-                        printMessage( "name:" + new String(name,StandardCharsets.US_ASCII));
+                        printMessage(my_token.toString());
                         printMessage(Constants.CMD_NAME_0xE5 + " status report end");
-                    } else {
-                        printMessage(Constants.CMD_NAME_0xE5 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        printMessage(Constants.CMD_NAME_0xE5 + e.getMessage());
                     }
                     resetCommandState();
                 }
