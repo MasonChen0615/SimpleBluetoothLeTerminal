@@ -12,15 +12,12 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.pm.PackageManager;
-import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.provider.Settings;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.Spannable;
@@ -52,11 +49,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
-import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
-
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
@@ -74,9 +67,7 @@ import javax.crypto.spec.SecretKeySpec;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionControlStatus;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionLockStatus;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionPincodeSchedule;
-import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionPincodeStatus;
-
-import static android.content.Context.LOCATION_SERVICE;
+import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionTokenStatus;
 
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener, LocationListener {
 
@@ -921,7 +912,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     break;
                 case Constants.CMD_0xC1:  // 連線 Token
                     readToken();
-                    SunionToken token  = service.getSecretLockToken();
+                    SunionTokenStatus token  = service.getSecretLockToken();
                     if (token.getToken().length != 0){
                         SpannableStringBuilder spn = new SpannableStringBuilder("Using Token"+'\n');
                         spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -1543,7 +1534,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         if ( CodeUtils.isHexString(s) ){
             byte[] token = CodeUtils.hexStringToBytes(s);
             if (token.length > 0){
-                service.setSecretLockToken(new SunionToken(1,token));
+                service.setSecretLockToken(new SunionTokenStatus(true,false,token,new byte[]{}));
                 return token;
             } else {
                 return service.lock_token.getBytes(StandardCharsets.US_ASCII);
@@ -1555,7 +1546,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     private void deleteToken(){
         this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).edit().putString(CodeUtils.ConnectionTokenFileName,"").commit();
-        service.setSecretLockToken(new SunionToken(0,new byte[]{}));
+        service.setSecretLockToken(new SunionTokenStatus(false));
     }
 
     private void setConnectStatusBtn(Boolean status) {

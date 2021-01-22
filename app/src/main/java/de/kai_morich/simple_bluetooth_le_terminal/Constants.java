@@ -84,34 +84,32 @@ class Constants {
 
     static final int CMD_0xD8 = 0 ; // ~ 0xDF	保留未使用
 
-    static final String CMD_NAME_0xC0 = "BLE_Connect";
-    static final String CMD_NAME_0xC1 = "Connect";
-    static final String CMD_NAME_0xCC = "DirectionCheck";
-    static final String CMD_NAME_0xCE = "FactoryReset";
-    static final String CMD_NAME_0xD0 = "InquireLockName";
-    static final String CMD_NAME_0xD1 = "SetLockName";
-    static final String CMD_NAME_0xD2 = "InquireLockTime";
-    static final String CMD_NAME_0xD3 = "SetLockTime";
-    static final String CMD_NAME_0xD4 = "InquireLockConfig";
-    static final String CMD_NAME_0xD5 = "SetLockConfig";
-    static final String CMD_NAME_0xD6 = "InquireLockState";
-    static final String CMD_NAME_0xD7 = "SetLockState";
-    static final String CMD_NAME_0xE0 = "InquireLogCount";
-    static final String CMD_NAME_0xE1 = "InquireLog";
-    static final String CMD_NAME_0xE2 = "DeleteLog";
-    static final String CMD_NAME_0xE3 = "";
-    static final String CMD_NAME_0xE4 = "InquireTokenArray";
-    static final String CMD_NAME_0xE5 = "InquireToken";
-    static final String CMD_NAME_0xE6 = "NewOnceToken";
-    static final String CMD_NAME_0xE7 = "ModifyToken";
-    static final String CMD_NAME_0xE8 = "DeleteToken";
-    static final String CMD_NAME_0xE9 = "";
-    static final String CMD_NAME_0xEA = "InquirePinCodeArray";
-    static final String CMD_NAME_0xEB = "InquirePinCode";
-    static final String CMD_NAME_0xEC = "NewPinCode";
-    static final String CMD_NAME_0xED = "ModifyPinCode";
-    static final String CMD_NAME_0xEE = "DeletePinCode";
-    static final String CMD_NAME_0xEF = "HaveMangerPinCode";
-
-    private Constants() {}
+    public static final String CMD_NAME_0xC0 = "BLE_Connect";
+    public static final String CMD_NAME_0xC1 = "Connect";
+    public static final String CMD_NAME_0xCC = "DirectionCheck";
+    public static final String CMD_NAME_0xCE = "FactoryReset";
+    public static final String CMD_NAME_0xD0 = "InquireLockName";
+    public static final String CMD_NAME_0xD1 = "SetLockName";
+    public static final String CMD_NAME_0xD2 = "InquireLockTime";
+    public static final String CMD_NAME_0xD3 = "SetLockTime";
+    public static final String CMD_NAME_0xD4 = "InquireLockConfig";
+    public static final String CMD_NAME_0xD5 = "SetLockConfig";
+    public static final String CMD_NAME_0xD6 = "InquireLockState";
+    public static final String CMD_NAME_0xD7 = "SetLockState";
+    public static final String CMD_NAME_0xE0 = "InquireLogCount";
+    public static final String CMD_NAME_0xE1 = "InquireLog";
+    public static final String CMD_NAME_0xE2 = "DeleteLog";
+    public static final String CMD_NAME_0xE3 = "";
+    public static final String CMD_NAME_0xE4 = "InquireTokenArray";
+    public static final String CMD_NAME_0xE5 = "InquireToken";
+    public static final String CMD_NAME_0xE6 = "NewOnceToken";
+    public static final String CMD_NAME_0xE7 = "ModifyToken";
+    public static final String CMD_NAME_0xE8 = "DeleteToken";
+    public static final String CMD_NAME_0xE9 = "";
+    public static final String CMD_NAME_0xEA = "InquirePinCodeArray";
+    public static final String CMD_NAME_0xEB = "InquirePinCode";
+    public static final String CMD_NAME_0xEC = "NewPinCode";
+    public static final String CMD_NAME_0xED = "ModifyPinCode";
+    public static final String CMD_NAME_0xEE = "DeletePinCode";
+    public static final String CMD_NAME_0xEF = "HaveMangerPinCode";
 }
