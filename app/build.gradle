@@ -8,8 +8,8 @@ android {
         vectorDrawables.useSupportLibrary true
 
         applicationId "de.kai_morich.simple_bluetooth_le_terminal"
-        versionCode 2
-        versionName "1.0.1"
+        versionCode 3
+        versionName "1.0.2"
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     compileOptions {
