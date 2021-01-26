@@ -84,4 +84,12 @@
         <item>lock</item>
         <item>unlock</item>
     </string-array>
+    <string-array name="qrcode_action">
+        <item>Get from QRCode</item>
+        <item>Show on QRCode</item>
+    </string-array>
+    <string-array name="qrcode_action_show">
+        <item>Set to local token</item>
+        <item>Show on QRCode</item>
+    </string-array>
 </resources>

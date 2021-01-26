@@ -30,6 +30,7 @@ public class CodeUtils {
          * connection token
          */
         public static final String ConnectionTokenFileName = "connection_token.key";
+        public static final String ConnectionTokenFileOnceUse = "connection_token.onceuse";
         /**
          * Command step 0 , init step.
          */

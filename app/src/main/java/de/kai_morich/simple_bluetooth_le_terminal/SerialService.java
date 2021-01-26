@@ -894,8 +894,8 @@ public class SerialService extends Service implements SerialListener {
                 if (checkCommandIncome(commandPackage,CodeUtils.InquireLogCount)){
                     byte[] payload = commandPackage.getData();
                     if (payload.length == 1) {
-                        printMessage(Constants.CMD_NAME_0xE0 + " allow , history size :" + CodeUtils.bytesToHex( new byte[]{payload[0]}));
                         int i2 = payload[0] & 0xFF;  // default byte in java is sign value , but our byte are un-sign , so we need convert it with 0xff.
+                        printMessage(Constants.CMD_NAME_0xE0 + " allow , history size :" + i2);
                         setLockLogCurrentNumber(i2);
                         exchangeTag(Constants.EXCHANGE_TAG_0xE0_PREFIX);
                     } else {
@@ -913,7 +913,14 @@ public class SerialService extends Service implements SerialListener {
                     if (payload.length >= 5) {
                         printMessage(Constants.CMD_NAME_0xE1 + " status report start");
                         printMessage("timestamp:" + CodeUtils.littleEndianToInt(new byte[]{payload[0],payload[1],payload[2],payload[3]}));
-                        printMessage("event:" + CodeUtils.bytesToHex(new byte[]{payload[4]}));
+                        printMessage("event:" + SunionLockLog.getLogTypeString(payload[4]));
+                        if (payload.length > 5) {
+                            byte[] name = new byte[payload.length - 5];
+                            for(int i = 5 ; i < payload.length ; i++){
+                                name[i-5] = payload[i];
+                            }
+                            printMessage("name:" + new String(name,StandardCharsets.US_ASCII));
+                        }
                         printMessage(Constants.CMD_NAME_0xE1 + " status report end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xE1 + " but length short than 5 : " + CodeUtils.bytesToHex(payload));

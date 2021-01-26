@@ -4,6 +4,9 @@ import android.os.Build;
 
 import androidx.annotation.RequiresApi;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.nio.charset.StandardCharsets;
 
 import de.kai_morich.simple_bluetooth_le_terminal.CodeUtils;
@@ -21,6 +24,14 @@ public class SunionTokenStatus {
     public static final String TOKEN = "TOKEN";
     public static final String NAME = "NAME";
     public static final int NAME_MAX_SIZE = 20;
+
+    public static final int EXCHANGE_VERSION = 1;
+    public static final String EXCHANGE_TAG_VERSION = "V";
+    public static final String EXCHANGE_TAG_ENABLE = "E";
+    public static final String EXCHANGE_TAG_ONCE_USE = "O";
+    public static final String EXCHANGE_TAG_OWNER_TOKEN = "OW";
+    public static final String EXCHANGE_TAG_TOKEN = "T";
+    public static final String EXCHANGE_TAG_NAME = "N";
 
     public SunionTokenStatus(){
         this.enable = false;
@@ -49,11 +60,11 @@ public class SunionTokenStatus {
     }
     public static SunionTokenStatus decodeTokenPayload(byte[] payload) throws Exception{
         SunionTokenStatus new_token = new SunionTokenStatus();
-        final int token_head = 10;
+        final int token_head = 11;
         int name_offset = 2;
         if (payload.length >= token_head) {
             new_token.enable = (payload[0] == ((byte) 0x01)) ? true : false;
-            new_token.once_use = (payload[1] == ((byte) 0x00)) ? true : false;
+            new_token.once_use = (payload[1] == ((byte) 0x00)) ? true : false; //1:永久, 0:一次性
             //TODO : need to delete when deivce use new token_head size(11)
             if (token_head == 10){
                 name_offset = 2;
@@ -113,5 +124,49 @@ public class SunionTokenStatus {
             }
         }
         return message;
+    }
+    public String getTokenAd(){
+        String message = "";
+        if (this.token != null) {
+            if (this.token.length > 0){
+                if (this.enable) {
+                    if (this.once_use) {
+                        message = "once use " + "token: " + CodeUtils.bytesToHex(token).substring(0,6) + "...";
+                    } else {
+                        message = "token: " + CodeUtils.bytesToHex(token).substring(0,12) + "...";
+                    }
+                } else {
+                    message = "disable";
+                }
+            } else {
+                message = "none";
+            }
+        } else {
+            message = "none";
+        }
+        return message;
+    }
+    private String getTokenExchangeDataV1(){
+        try {
+            JSONObject data = new JSONObject();
+            data.put(EXCHANGE_TAG_VERSION,EXCHANGE_VERSION);
+            data.put(EXCHANGE_TAG_ENABLE,this.enable);
+            data.put(EXCHANGE_TAG_ONCE_USE,this.once_use);
+            data.put(EXCHANGE_TAG_OWNER_TOKEN,this.owner_token);
+            data.put(EXCHANGE_TAG_TOKEN,CodeUtils.bytesToHex(this.token));
+            data.put(EXCHANGE_TAG_NAME,CodeUtils.bytesToHex(this.name));
+            return data.toString();
+        } catch (JSONException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return "{}";
+        }
+    }
+    public String getTokenExchangeData(){
+        return getTokenExchangeDataV1();
+    }
+    public static SunionTokenStatus decodeTokenExchangeData(){
+        SunionTokenStatus new_token = new SunionTokenStatus();
+        return new_token;
     }
 }
