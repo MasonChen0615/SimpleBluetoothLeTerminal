@@ -14,6 +14,9 @@
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
 
+    <string name="file_permission_title">Read external storage permission required</string>
+    <string name="file_permission_message">Read external storage for exchange token use.</string>
+
     <string name="time_start">Start from</string>
     <string name="time_end">End to</string>
 

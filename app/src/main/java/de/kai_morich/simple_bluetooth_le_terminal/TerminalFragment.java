@@ -1,5 +1,6 @@
 package de.kai_morich.simple_bluetooth_le_terminal;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
@@ -11,15 +12,19 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.graphics.Bitmap;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
+import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.Spannable;
@@ -33,6 +38,8 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -55,10 +62,20 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.mlkit.vision.barcode.Barcode;
+import com.google.mlkit.vision.barcode.BarcodeScanner;
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions;
-import com.google.zxing.WriterException;
+import com.google.mlkit.vision.barcode.BarcodeScanning;
+import com.google.mlkit.vision.common.InputImage;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
@@ -66,6 +83,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Random;
 
 import javax.crypto.KeyGenerator;
@@ -79,6 +97,7 @@ import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionLockStatus;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionPincodeSchedule;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionTokenStatus;
 
+import static android.app.Activity.RESULT_OK;
 import static android.content.Context.WINDOW_SERVICE;
 
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener, LocationListener {
@@ -115,6 +134,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private int wait_reconnection_delay = 0;
     private Boolean wait_connection_counter = false;
     private LocationManager mLocationManager;
+    private final int PICK_IMAGE = 1;
 
     @Override
     public void onLocationChanged(final Location location) {
@@ -1317,6 +1337,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     private void commandC0(){
         try {
+            service.resetConnectionAESKey();
             KeyGenerator keygen = KeyGenerator.getInstance("AES");
             keygen.init(128);
             SecretKey randomkey = keygen.generateKey();
@@ -1493,15 +1514,115 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
-    private void qrcodeActionGet(){
-        BarcodeScannerOptions options =
-            new BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(
-                        Barcode.FORMAT_QR_CODE
-                ).build();
-    }
-    private void qrcodeActionSelectShowToUse(){
 
+    private static boolean isExternalStorageReadOnly() {
+        String extStorageState = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(extStorageState)) {
+            return true;
+        }
+        return false;
+    }
+    private static boolean isExternalStorageAvailable() {
+        String extStorageState = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(extStorageState)) {
+            return true;
+        }
+        return false;
+    }
+    public String getPathFromURI(Uri contentUri) {
+        String res = null;
+        String[] proj = {MediaStore.Images.Media.DATA};
+        Cursor cursor = getActivity().getContentResolver().query(contentUri, proj, null, null, null);
+        if (cursor.moveToFirst()) {
+            int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+            res = cursor.getString(column_index);
+        }
+        cursor.close();
+        return res;
+    }
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data){
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_IMAGE) {
+            try {
+                if (resultCode == RESULT_OK) {
+                    Uri selectedImageUri = data.getData();
+                    // Get the path from the Uri
+                    final String path = getPathFromURI(selectedImageUri);
+                    if (path != null) {
+                        File f = new File(path);
+                        selectedImageUri = Uri.fromFile(f);
+                    }
+                    // Set the image to qrcode decode.
+                    qrcodeActionGetQRCode(selectedImageUri);
+                }
+            } catch (Exception e) {
+                Log.e("FileSelectorActivity", "File select error", e);
+            }
+        }
+    }
+    private void qrcodeActionGetQRCode(Uri selectedImageUri){
+        BarcodeScanner barcodeScanner =
+            BarcodeScanning.getClient(
+                new BarcodeScannerOptions.Builder()
+                    .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                    .build());
+        try {
+            InputImage image = InputImage.fromFilePath(getContext(),selectedImageUri);
+            Task<List<Barcode>> task = barcodeScanner.process(image);
+            task.addOnSuccessListener(new OnSuccessListener<List<Barcode>>() {
+                @Override
+                public void onSuccess(List<Barcode> barcodes) {
+                    if(barcodes.isEmpty()){
+                        popNotice("not support this image");
+                    } else {
+                        for (Barcode barcode : barcodes) {
+                            try {
+                                JSONObject jsonObject = new JSONObject(barcode.getRawValue());
+                                SunionTokenStatus token = SunionTokenStatus.decodeTokenExchangeData(jsonObject);
+                                popNotice(token.toString());
+                                service.setLockStorageToken(token.exchange_index,token);
+                                saveToken(token.getToken(),token.isTokenOnceUse());
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                                popNotice("not support this qrcode");
+                            }
+                        }
+                    }
+                }
+            }).addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    // Task failed with an exception
+                    // ...
+                    popNotice("not support.");
+                }
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    private void qrcodeActionGet() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (getActivity().checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                builder.setTitle(R.string.file_permission_title);
+                builder.setMessage(R.string.file_permission_message);
+                builder.setPositiveButton(android.R.string.ok,
+                        (dialog, which) -> requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 0));
+                builder.show();
+                return;
+            }
+        }
+        if (isExternalStorageReadOnly() || isExternalStorageAvailable()){
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("image/*");
+            startActivityForResult(Intent.createChooser(intent, "Select QRCode"),PICK_IMAGE);
+        } else {
+            popNotice("not support.");
+            return;
+        }
     }
     private void qrcodeActionShowCode(){
         View view = LayoutInflater.from(this.getContext()) .inflate(R.layout.popqrcode_layout, null);
@@ -1523,9 +1644,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         SunionTokenStatus tmp = service.getLockStorageToken(command_args.qrcode_select);
         qrcode_head.setText("index : " + command_args.qrcode_select + " token : " + CodeUtils.bytesToHex(tmp.getToken()).substring(0,6) + "...");
         if (tmp.getToken() != null){
-            if (tmp.getToken().length > 0) {
-                //pass
-            } else {
+            if (tmp.getToken().length <= 0) {
                 popNotice("useless token");
                 popupWindow.dismiss();
                 return;
@@ -1535,6 +1654,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             popupWindow.dismiss();
             return;
         }
+        tmp.exchange_index = command_args.qrcode_select;
         WindowManager manager = (WindowManager) getActivity().getSystemService(WINDOW_SERVICE);
         Display display = manager.getDefaultDisplay();
         Point point = new Point();
@@ -1544,7 +1664,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         int smallerDimension = width < height ? width : height;
         smallerDimension = smallerDimension * 3 / 4;
         // Initializing the QR Encoder with your value to be encoded, type you required and Dimension
-        QRGEncoder qrgEncoder = new QRGEncoder(service.getLockStorageToken(command_args.qrcode_select).getTokenExchangeData(), null, QRGContents.Type.TEXT, smallerDimension);
+        QRGEncoder qrgEncoder = new QRGEncoder(tmp.getTokenExchangeData(), null, QRGContents.Type.TEXT, smallerDimension);
         qrgEncoder.setColorBlack(Color.BLACK);
         qrgEncoder.setColorWhite(Color.WHITE);
         try {

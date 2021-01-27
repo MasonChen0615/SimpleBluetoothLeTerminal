@@ -416,6 +416,12 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    public void resetConnectionAESKey(){
+        synchronized (this) {
+            this.connection_aes_key = null;
+        }
+    }
+
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public SecretKey getConnectionAESKey(){
         synchronized (this) {

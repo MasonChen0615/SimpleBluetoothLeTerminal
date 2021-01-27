@@ -13,6 +13,7 @@ import de.kai_morich.simple_bluetooth_le_terminal.CodeUtils;
 
 public class SunionTokenStatus {
 
+    public int exchange_index= 0;
     private Boolean enable = false;
     private Boolean once_use = false;
     private Boolean owner_token = false;
@@ -32,6 +33,7 @@ public class SunionTokenStatus {
     public static final String EXCHANGE_TAG_OWNER_TOKEN = "OW";
     public static final String EXCHANGE_TAG_TOKEN = "T";
     public static final String EXCHANGE_TAG_NAME = "N";
+    public static final String EXCHANGE_TAG_INDEX = "I";
 
     public SunionTokenStatus(){
         this.enable = false;
@@ -155,6 +157,7 @@ public class SunionTokenStatus {
             data.put(EXCHANGE_TAG_OWNER_TOKEN,this.owner_token);
             data.put(EXCHANGE_TAG_TOKEN,CodeUtils.bytesToHex(this.token));
             data.put(EXCHANGE_TAG_NAME,CodeUtils.bytesToHex(this.name));
+            data.put(EXCHANGE_TAG_INDEX,this.exchange_index);
             return data.toString();
         } catch (JSONException e) {
             // TODO Auto-generated catch block
@@ -165,8 +168,14 @@ public class SunionTokenStatus {
     public String getTokenExchangeData(){
         return getTokenExchangeDataV1();
     }
-    public static SunionTokenStatus decodeTokenExchangeData(){
+    public static SunionTokenStatus decodeTokenExchangeData(JSONObject json) throws JSONException {
         SunionTokenStatus new_token = new SunionTokenStatus();
+        new_token.enable = json.getBoolean(EXCHANGE_TAG_ENABLE);
+        new_token.once_use = json.getBoolean(EXCHANGE_TAG_ONCE_USE);
+        new_token.owner_token = json.getBoolean(EXCHANGE_TAG_OWNER_TOKEN);
+        new_token.token = CodeUtils.hexStringToBytes(json.getString(EXCHANGE_TAG_TOKEN));
+        new_token.name = CodeUtils.hexStringToBytes(json.getString(EXCHANGE_TAG_NAME));
+        new_token.exchange_index = json.getInt(EXCHANGE_TAG_INDEX);
         return new_token;
     }
 }

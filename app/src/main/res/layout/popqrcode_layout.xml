@@ -21,6 +21,12 @@
             android:layout_width="250dp"
             android:layout_height="250dp"
             android:orientation="vertical">
+
+            <SurfaceView
+                android:id="@+id/surfaceView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
         </LinearLayout>
         <Button
             android:id="@+id/qrcode_conform"
