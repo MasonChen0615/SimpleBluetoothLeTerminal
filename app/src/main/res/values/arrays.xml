@@ -13,6 +13,8 @@
     <string-array name="command_names">
         <item>0xC0	連線亂數</item>
         <item>0xC1	連線 Token</item>
+        <item>0xC7	新增管理者PinCode</item>
+        <item>0xC8	修改管理者PinCode</item>
         <item>0xCC	左右判定</item>
         <item>0xCE	回復原廠設定</item>
         <item>0xD0	查詢鎖體名稱</item>
@@ -43,6 +45,8 @@
     <string-array name="command_values">
         <item>C0</item>
         <item>C1</item>
+        <item>C7</item>
+        <item>C8</item>
         <item>CC</item>
         <item>CE</item>
         <item>D0</item>

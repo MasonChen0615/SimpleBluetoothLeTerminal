@@ -798,12 +798,82 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     }
                 };
                 break;
+            case Constants.CMD_0xC7:
+                //PinCode
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xC7_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xC7_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[0].setText(command_args.pincode.getReadablePincode());
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        command_args.setPincodeIndex(0);
+                        command_args.pincode.enable  = true;
+                        command_args.pincode.setPincode(edit_command_arg[0].getText().toString());
+                        byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
+                        command_args.pincode.schedule = new SunionPincodeSchedule(
+                                SunionPincodeSchedule.ALL_DAY,
+                                weekday,
+                                SunionPincodeSchedule.WEEK_TIME_MIN,
+                                SunionPincodeSchedule.WEEK_TIME_MAX,
+                                SunionPincodeSchedule.SEEK_TIME_MIN,
+                                SunionPincodeSchedule.SEEK_TIME_MAX
+                        );
+                        command_args.pincode.setName("Admin pincode");
+                    }
+                };
+                break;
+            case Constants.CMD_0xC8:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xC8_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xC8_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[0].setText(command_args.pincode.getReadablePincode());
+                command_arg[1].setVisibility(View.VISIBLE);
+                command_arg[1].setText(R.string.Command_CMD_0xC8_Arg1);
+                edit_command_arg[1].setVisibility(View.VISIBLE);
+                edit_command_arg[1].setHint(R.string.Command_CMD_0xC8_Arg1_Message);
+                edit_command_arg[1].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[1].setText(command_args.old_pincode.getReadablePincode());
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
+                        command_args.setPincodeIndex(0);
+                        command_args.old_pincode.enable  = true;
+                        command_args.old_pincode.setPincode(edit_command_arg[0].getText().toString());
+                        command_args.old_pincode.schedule = new SunionPincodeSchedule(
+                                SunionPincodeSchedule.ALL_DAY,
+                                weekday,
+                                SunionPincodeSchedule.WEEK_TIME_MIN,
+                                SunionPincodeSchedule.WEEK_TIME_MAX,
+                                SunionPincodeSchedule.SEEK_TIME_MIN,
+                                SunionPincodeSchedule.SEEK_TIME_MAX
+                        );
+                        command_args.old_pincode.setName("old admin pincode");
+                        command_args.pincode.enable  = true;
+                        command_args.pincode.setPincode(edit_command_arg[1].getText().toString());
+                        command_args.pincode.schedule = new SunionPincodeSchedule(
+                                SunionPincodeSchedule.ALL_DAY,
+                                weekday,
+                                SunionPincodeSchedule.WEEK_TIME_MIN,
+                                SunionPincodeSchedule.WEEK_TIME_MAX,
+                                SunionPincodeSchedule.SEEK_TIME_MIN,
+                                SunionPincodeSchedule.SEEK_TIME_MAX
+                        );
+                        command_args.pincode.setName("new admin pincode");
+                    }
+                };
+                break;
             case Constants.CMD_0xEC:
             case Constants.CMD_0xED:
                 //Index
                 command_arg[0].setVisibility(View.VISIBLE);
-                command_arg[0].setText(R.string.Command_CMD_0xEC_Arg0);
                 edit_command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xEC_Arg0);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xEC_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 edit_command_arg[0].setText(command_args.getPincodeIndex(false)+"");
@@ -945,6 +1015,47 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                                 command_args.current_token
                         );
                     }
+                    break;
+                case Constants.CMD_0xC7:
+                    data = new byte[1+command_args.pincode.pincode.length];
+                    data[0] = (byte) command_args.pincode.pincode.length;
+                    popNotice("create admin pincode");
+                    for (int i = 1 ; i < data.length ; i++) {
+                        data[i] = command_args.pincode.pincode[i-1];
+                    }
+                    commandWithStep(
+                            CodeUtils.NewAdminPinCode,
+                            0 + "",
+                            (byte)data.length,
+                            data
+                    );
+                    break;
+                case Constants.CMD_0xC8:
+                    popNotice("modify admin pincode");
+                    data = new byte[1 + command_args.old_pincode.pincode.length + 1 + command_args.pincode.pincode.length];
+                    data[0] = (byte) command_args.old_pincode.pincode.length;
+                    int index = 0;
+                    while (index < data.length) {
+                        if (index == 0){
+                            data[index] = (byte) command_args.old_pincode.pincode.length;
+                        }
+                        if (index > 0 && index < (1+command_args.old_pincode.pincode.length)){
+                            data[index] = command_args.old_pincode.pincode[index - 1];
+                        }
+                        if (index == (1+command_args.old_pincode.pincode.length)){
+                            data[index] = (byte) command_args.pincode.pincode.length;
+                        }
+                        if (index > (1+command_args.old_pincode.pincode.length) && index < data.length){
+                            data[index] = command_args.pincode.pincode[index - (1+command_args.old_pincode.pincode.length+1)];
+                        }
+                        index++;
+                    }
+                    commandWithStep(
+                            CodeUtils.ModifyAdminPinCode,
+                            0 + "",
+                            (byte)data.length,
+                            data
+                    );
                     break;
                 case Constants.CMD_0xCC:
                     commandNormal(CodeUtils.DirectionCheck,(byte) 0x00,new byte[]{});

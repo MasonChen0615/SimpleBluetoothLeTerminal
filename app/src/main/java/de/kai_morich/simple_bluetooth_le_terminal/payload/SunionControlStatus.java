@@ -14,6 +14,7 @@ public class SunionControlStatus {
     private int storage_log_index = 0;
     private int storage_log_index_current_number = 0;
 
+    public SunionPincodeStatus old_pincode;
     public SunionPincodeStatus pincode;
     public SunionPincodeSchedule schedule;
     public SunionLockStatus config_status;
@@ -59,6 +60,12 @@ public class SunionControlStatus {
                 getRandomTokenName(NEW_PREFIX).getBytes(StandardCharsets.US_ASCII)
         );
         this.pincode = new SunionPincodeStatus(
+                true,
+                SunionPincodeStatus.DEFAULT_PINCODE,
+                this.schedule,
+                getRandomPincodeName(NEW_PREFIX).getBytes(StandardCharsets.US_ASCII)
+        );
+        this.old_pincode = new SunionPincodeStatus(
                 true,
                 SunionPincodeStatus.DEFAULT_PINCODE,
                 this.schedule,

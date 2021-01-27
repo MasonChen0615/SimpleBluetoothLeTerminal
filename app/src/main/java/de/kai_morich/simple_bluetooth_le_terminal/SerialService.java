@@ -604,6 +604,9 @@ public class SerialService extends Service implements SerialListener {
                     byte[] xorkey = this.sunionConnectionAESKey();
                     setConnectionAESKey(new SecretKeySpec(xorkey, 0, xorkey.length, "AES"));
                     resetCommandState();
+                    Log.i(Constants.DEBUG_TAG, "row vi:" + commandPackage.getCommandVI());
+                    Log.i(Constants.DEBUG_TAG, "row command:" + CodeUtils.bytesToHex(new byte[]{commandPackage.getCommand()}));
+                    Log.i(Constants.DEBUG_TAG, "row payload:" + CodeUtils.bytesToHex(commandPackage.getData()));
                 }
                 break;
             case CodeUtils.Connect :  // same CodeUtils.UsingOnceTokenConnect
@@ -1117,6 +1120,40 @@ public class SerialService extends Service implements SerialListener {
                         printMessage(Constants.CMD_NAME_0xEB + " status report end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xEB + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
+                break;
+            case CodeUtils.NewAdminPinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.NewAdminPinCode)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xC7 + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xC7 + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xC7 + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xC7 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
+                break;
+            case CodeUtils.ModifyAdminPinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.ModifyAdminPinCode)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xC8 + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xC8 + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xC8 + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xC8 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
                     }
                     resetCommandState();
                 }

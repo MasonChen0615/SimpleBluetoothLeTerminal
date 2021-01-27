@@ -29,7 +29,9 @@ class Constants {
     // command list
     static final int CMD_0xC0 = 0 ; //	連線亂數
     static final int CMD_0xC1 = CMD_0xC0 + 1 ; //	連線 Token
-    static final int CMD_0xCC = CMD_0xC1 + 1 ; //	左右判定
+    static final int CMD_0xC7 = CMD_0xC1 + 1 ; //	新增管理者PinCode
+    static final int CMD_0xC8 = CMD_0xC7 + 1 ; //	修改管理者PinCode
+    static final int CMD_0xCC = CMD_0xC8 + 1 ; //	左右判定
     static final int CMD_0xCE = CMD_0xCC + 1 ; //	回復原廠設定
     static final int CMD_0xD0 = CMD_0xCE + 1 ; //	查詢鎖體名稱
     static final int CMD_0xD1 = CMD_0xD0 + 1 ; //	設定鎖體名稱
@@ -55,6 +57,8 @@ class Constants {
     static final int CMD_0xED = CMD_0xEC + 1 ; //	修改 PinCode
     static final int CMD_0xEE = CMD_0xED + 1 ; //	刪除 PinCode
     static final int CMD_0xEF = CMD_0xEE + 1 ; //	刪除 PinCode
+//    0xC7	新增管理者PinCode
+//    0xC8	修改管理者PinCode
 //    static final int CMD_0xCC = 2 ; //	左右判定
 //    static final int CMD_0xCE = 3 ; //	回復原廠設定
 //    static final int CMD_0xD0 = 4 ; //	查詢鎖體名稱
@@ -86,6 +90,8 @@ class Constants {
 
     public static final String CMD_NAME_0xC0 = "BLE_Connect";
     public static final String CMD_NAME_0xC1 = "Connect";
+    public static final String CMD_NAME_0xC7 = "NewAdminPinCode";
+    public static final String CMD_NAME_0xC8 = "ModifyAdminPinCode";
     public static final String CMD_NAME_0xCC = "DirectionCheck";
     public static final String CMD_NAME_0xCE = "FactoryReset";
     public static final String CMD_NAME_0xD0 = "InquireLockName";
