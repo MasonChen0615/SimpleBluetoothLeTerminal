@@ -117,6 +117,7 @@ public class SunionTokenStatus {
     public String toString(){
         String message = "enable:" + ( enable ? "true" : "false" ) + "\n";
         message += "once_use:" + ( once_use ? "true" : "false" ) + "\n";
+        message += "owner_token:" + ( owner_token ? "true" : "false" ) + "\n";
         //TODO : wait for deivce update new version.
 //        message += "owner token:" + ( owner_token ? "true" : "false" ) + "\n";
         message += "token:" + CodeUtils.bytesToHex(token);

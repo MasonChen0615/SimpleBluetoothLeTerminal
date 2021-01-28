@@ -9,7 +9,7 @@ android {
 
         applicationId "de.kai_morich.simple_bluetooth_le_terminal"
         versionCode 5
-        versionName "1.0.4"
+        versionName "1.0.5"
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     compileOptions {
