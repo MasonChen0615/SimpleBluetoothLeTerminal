@@ -14,6 +14,7 @@ public class SunionControlStatus {
     private int storage_log_index = 0;
     private int storage_log_index_current_number = 0;
 
+    public SunionPincodeStatus old_pincode;
     public SunionPincodeStatus pincode;
     public SunionPincodeSchedule schedule;
     public SunionLockStatus config_status;
@@ -24,6 +25,15 @@ public class SunionControlStatus {
     public static final int max_token_index = 10;
     public static final String NEW_PREFIX = "New";
     public static final String MODIFY_PREFIX = "Modify";
+
+    public static final int QRCODE_ACTION_GET = 0;
+    public static final int QRCODE_ACTION_SHOW = 1;
+    public int qrcode_action = 0;
+    public int qrcode_select = 0;
+    public Boolean token_store = false;
+
+    public byte[] current_token;
+    public Boolean current_token_once_use = false;
 
     public SunionControlStatus(){
         byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
@@ -50,6 +60,12 @@ public class SunionControlStatus {
                 getRandomTokenName(NEW_PREFIX).getBytes(StandardCharsets.US_ASCII)
         );
         this.pincode = new SunionPincodeStatus(
+                true,
+                SunionPincodeStatus.DEFAULT_PINCODE,
+                this.schedule,
+                getRandomPincodeName(NEW_PREFIX).getBytes(StandardCharsets.US_ASCII)
+        );
+        this.old_pincode = new SunionPincodeStatus(
                 true,
                 SunionPincodeStatus.DEFAULT_PINCODE,
                 this.schedule,

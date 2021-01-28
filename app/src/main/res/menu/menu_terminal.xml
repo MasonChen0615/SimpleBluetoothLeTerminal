@@ -29,4 +29,8 @@
         android:id="@+id/token"
         android:title="Delete Token"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/qrcode"
+        android:title="Token QRcode"
+        app:showAsAction="never" />
 </menu>

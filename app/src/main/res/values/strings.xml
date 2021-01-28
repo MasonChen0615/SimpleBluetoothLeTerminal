@@ -14,6 +14,9 @@
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
 
+    <string name="file_permission_title">Read external storage permission required</string>
+    <string name="file_permission_message">Read external storage for exchange token use.</string>
+
     <string name="time_start">Start from</string>
     <string name="time_end">End to</string>
 
@@ -24,6 +27,14 @@
     <string name="Command_CMD_0xC0_Arg0_Message">16 bytes,參數由程式管理</string>
     <string name="Command_CMD_0xC1_Arg0">Token</string>
     <string name="Command_CMD_0xC1_Arg0_Message">8 bytes,參數由程式管理</string>
+
+    <string name="Command_CMD_0xC7_Arg0">PinCode</string>
+    <string name="Command_CMD_0xC7_Arg0_Message">4 digital ~ 6 digital</string>
+    <string name="Command_CMD_0xC8_Arg0">Old PinCode</string>
+    <string name="Command_CMD_0xC8_Arg0_Message">4 digital ~ 6 digital</string>
+    <string name="Command_CMD_0xC8_Arg1">New PinCode</string>
+    <string name="Command_CMD_0xC8_Arg1_Message">4 digital ~ 6 digital</string>
+
     <string name="Command_CMD_0xD1_Arg0">鎖體名稱</string>
     <string name="Command_CMD_0xD1_Arg0_Message">1 ~ 20 Byte</string>
     <string name="Command_CMD_0xD3_Arg0">TimeStamp (Unix)</string>

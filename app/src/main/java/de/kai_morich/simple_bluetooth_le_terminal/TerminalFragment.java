@@ -12,12 +12,19 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.graphics.Color;
+import android.graphics.Point;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
+import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.Spannable;
@@ -25,11 +32,14 @@ import android.text.SpannableStringBuilder;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
 import android.util.Log;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -39,6 +49,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.Spinner;
@@ -51,6 +62,20 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
+import com.google.mlkit.vision.barcode.Barcode;
+import com.google.mlkit.vision.barcode.BarcodeScanner;
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions;
+import com.google.mlkit.vision.barcode.BarcodeScanning;
+import com.google.mlkit.vision.common.InputImage;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
@@ -58,16 +83,22 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Random;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import androidmads.library.qrgenearator.QRGContents;
+import androidmads.library.qrgenearator.QRGEncoder;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionControlStatus;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionLockStatus;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionPincodeSchedule;
 import de.kai_morich.simple_bluetooth_le_terminal.payload.SunionTokenStatus;
+
+import static android.app.Activity.RESULT_OK;
+import static android.content.Context.WINDOW_SERVICE;
 
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener, LocationListener {
 
@@ -103,6 +134,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private int wait_reconnection_delay = 0;
     private Boolean wait_connection_counter = false;
     private LocationManager mLocationManager;
+    private final int PICK_IMAGE = 1;
 
     @Override
     public void onLocationChanged(final Location location) {
@@ -786,12 +818,82 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     }
                 };
                 break;
+            case Constants.CMD_0xC7:
+                //PinCode
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xC7_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xC7_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[0].setText(command_args.pincode.getReadablePincode());
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        command_args.setPincodeIndex(0);
+                        command_args.pincode.enable  = true;
+                        command_args.pincode.setPincode(edit_command_arg[0].getText().toString());
+                        byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
+                        command_args.pincode.schedule = new SunionPincodeSchedule(
+                                SunionPincodeSchedule.ALL_DAY,
+                                weekday,
+                                SunionPincodeSchedule.WEEK_TIME_MIN,
+                                SunionPincodeSchedule.WEEK_TIME_MAX,
+                                SunionPincodeSchedule.SEEK_TIME_MIN,
+                                SunionPincodeSchedule.SEEK_TIME_MAX
+                        );
+                        command_args.pincode.setName("Admin pincode");
+                    }
+                };
+                break;
+            case Constants.CMD_0xC8:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xC8_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xC8_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[0].setText(command_args.pincode.getReadablePincode());
+                command_arg[1].setVisibility(View.VISIBLE);
+                command_arg[1].setText(R.string.Command_CMD_0xC8_Arg1);
+                edit_command_arg[1].setVisibility(View.VISIBLE);
+                edit_command_arg[1].setHint(R.string.Command_CMD_0xC8_Arg1_Message);
+                edit_command_arg[1].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[1].setText(command_args.old_pincode.getReadablePincode());
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
+                        command_args.setPincodeIndex(0);
+                        command_args.old_pincode.enable  = true;
+                        command_args.old_pincode.setPincode(edit_command_arg[0].getText().toString());
+                        command_args.old_pincode.schedule = new SunionPincodeSchedule(
+                                SunionPincodeSchedule.ALL_DAY,
+                                weekday,
+                                SunionPincodeSchedule.WEEK_TIME_MIN,
+                                SunionPincodeSchedule.WEEK_TIME_MAX,
+                                SunionPincodeSchedule.SEEK_TIME_MIN,
+                                SunionPincodeSchedule.SEEK_TIME_MAX
+                        );
+                        command_args.old_pincode.setName("old admin pincode");
+                        command_args.pincode.enable  = true;
+                        command_args.pincode.setPincode(edit_command_arg[1].getText().toString());
+                        command_args.pincode.schedule = new SunionPincodeSchedule(
+                                SunionPincodeSchedule.ALL_DAY,
+                                weekday,
+                                SunionPincodeSchedule.WEEK_TIME_MIN,
+                                SunionPincodeSchedule.WEEK_TIME_MAX,
+                                SunionPincodeSchedule.SEEK_TIME_MIN,
+                                SunionPincodeSchedule.SEEK_TIME_MAX
+                        );
+                        command_args.pincode.setName("new admin pincode");
+                    }
+                };
+                break;
             case Constants.CMD_0xEC:
             case Constants.CMD_0xED:
                 //Index
                 command_arg[0].setVisibility(View.VISIBLE);
-                command_arg[0].setText(R.string.Command_CMD_0xEC_Arg0);
                 edit_command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xEC_Arg0);
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xEC_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 edit_command_arg[0].setText(command_args.getPincodeIndex(false)+"");
@@ -912,28 +1014,68 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     break;
                 case Constants.CMD_0xC1:  // 連線 Token
                     readToken();
-                    SunionTokenStatus token  = service.getSecretLockToken();
-                    if (token.getToken().length != 0){
-                        SpannableStringBuilder spn = new SpannableStringBuilder("Using Token"+'\n');
-                        spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                        receiveText.append(spn);
-                        commandWithStep(
-                                CodeUtils.Connect,
-                                CodeUtils.Connect_UsingTokenConnect,
-                                (byte)token.getToken().length,
-                                token.getToken()
-                        );
-                    }else{
-                        SpannableStringBuilder spn = new SpannableStringBuilder("Using Once Token"+'\n');
+                    if (command_args.current_token_once_use){
+                        SpannableStringBuilder spn = new SpannableStringBuilder("Using Once Token " + CodeUtils.bytesToHex(command_args.current_token).substring(0,6) + "...\n");
                         spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                         receiveText.append(spn);
                         commandWithStep(
                                 CodeUtils.Connect,
                                 CodeUtils.Connect_UsingOnceTokenConnect,
-                                (byte)service.lock_token.getBytes(StandardCharsets.US_ASCII).length,
-                                service.lock_token.getBytes(StandardCharsets.US_ASCII)
+                                (byte)command_args.current_token.length,
+                                command_args.current_token
+                        );
+                    } else {
+                        SpannableStringBuilder spn = new SpannableStringBuilder("Using Token " + CodeUtils.bytesToHex(command_args.current_token).substring(0,6) + "...\n");
+                        spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        receiveText.append(spn);
+                        commandWithStep(
+                                CodeUtils.Connect,
+                                CodeUtils.Connect_UsingTokenConnect,
+                                (byte)command_args.current_token.length,
+                                command_args.current_token
                         );
                     }
+                    break;
+                case Constants.CMD_0xC7:
+                    data = new byte[1+command_args.pincode.pincode.length];
+                    data[0] = (byte) command_args.pincode.pincode.length;
+                    popNotice("create admin pincode");
+                    for (int i = 1 ; i < data.length ; i++) {
+                        data[i] = command_args.pincode.pincode[i-1];
+                    }
+                    commandWithStep(
+                            CodeUtils.NewAdminPinCode,
+                            0 + "",
+                            (byte)data.length,
+                            data
+                    );
+                    break;
+                case Constants.CMD_0xC8:
+                    popNotice("modify admin pincode");
+                    data = new byte[1 + command_args.old_pincode.pincode.length + 1 + command_args.pincode.pincode.length];
+                    data[0] = (byte) command_args.old_pincode.pincode.length;
+                    int index = 0;
+                    while (index < data.length) {
+                        if (index == 0){
+                            data[index] = (byte) command_args.old_pincode.pincode.length;
+                        }
+                        if (index > 0 && index < (1+command_args.old_pincode.pincode.length)){
+                            data[index] = command_args.old_pincode.pincode[index - 1];
+                        }
+                        if (index == (1+command_args.old_pincode.pincode.length)){
+                            data[index] = (byte) command_args.pincode.pincode.length;
+                        }
+                        if (index > (1+command_args.old_pincode.pincode.length) && index < data.length){
+                            data[index] = command_args.pincode.pincode[index - (1+command_args.old_pincode.pincode.length+1)];
+                        }
+                        index++;
+                    }
+                    commandWithStep(
+                            CodeUtils.ModifyAdminPinCode,
+                            0 + "",
+                            (byte)data.length,
+                            data
+                    );
                     break;
                 case Constants.CMD_0xCC:
                     commandNormal(CodeUtils.DirectionCheck,(byte) 0x00,new byte[]{});
@@ -1002,6 +1144,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     data[0] = (byte)command_args.getLogIndex(false);
                     commandNormal(CodeUtils.InquireLog,(byte) data.length,data);
                     popNotice("log index :" + command_args.getLogIndex(false));
+                    SpannableStringBuilder spn = new SpannableStringBuilder("\nlog index :" + command_args.getLogIndex(false) + "\n");
+                    spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    receiveText.append(spn);
                     break;
                 case Constants.CMD_0xE2:
                     data = new byte[1];
@@ -1035,11 +1180,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     );
                     break;
                 case Constants.CMD_0xE7:
-                    test_name = new String (command_args.token.getTokenName(), StandardCharsets.US_ASCII) ;
-                    tmp = test_name.getBytes(StandardCharsets.US_ASCII);
-                    data = new byte[test_name.length() + 1];
+                    tmp = command_args.token.getTokenName();
+                    data = new byte[tmp.length + 1];
                     data[0] = (byte) command_args.getTokenIndex(false);
-                    popNotice("modify token index is " + ((int)(data[0] & (byte)0xff)) + " and name: " + test_name);
+                    popNotice("modify token index is " + ((int)(data[0] & (byte)0xff)) + " and name: " + new String(tmp,StandardCharsets.US_ASCII));
                     for ( int i = 1 ; i < data.length ; i++ ) {
                         data[i] = tmp[i-1];
                     }
@@ -1128,7 +1272,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 default:
                     break;
             }
-
+            getActivity().findViewById(R.id.send_btn).setEnabled(true);
+            getActivity().findViewById(R.id.send_btn).setBackground(getResources().getDrawable(R.drawable.ic_send_white_24dp));
         }
     };
 
@@ -1164,6 +1309,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
         View sendBtn = view.findViewById(R.id.send_btn);
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
+        sendBtn.setEnabled(false);
+        sendBtn.setBackground(getResources().getDrawable(R.drawable.ic_send_cancel_white_24dp));
 
         command_button= (Button)view.findViewById(R.id.Command);
         command_button.setOnLongClickListener(new View.OnLongClickListener() {
@@ -1172,13 +1319,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 //        popupWindow
                 initPopupWindow();
                 //        popupWindow for SchedulePopupWindow when first popupWindow click Schedule button.
-
                 popupWindow.showAtLocation(view, Gravity.CENTER_HORIZONTAL, 0, 0);
                 Log.i(Constants.DEBUG_TAG,"onLongClick:" + leaders.get(current_command_select_position).get(NAME));
                 return true;
             }
         });
-
         command_button.setOnClickListener(command_click);
         return view;
     }
@@ -1191,6 +1336,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     private void commandC0(){
         try {
+            service.resetConnectionAESKey();
             KeyGenerator keygen = KeyGenerator.getInstance("AES");
             keygen.init(128);
             SecretKey randomkey = keygen.generateKey();
@@ -1358,9 +1504,292 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             };
             thread.start();
             return true;
+        } else if (id == R.id.qrcode) {
+            // get or show qrcode.
+            qrcodeActionSelect();
+            return true;
         } else {
             return super.onOptionsItemSelected(item);
         }
+    }
+
+
+    private static boolean isExternalStorageReadOnly() {
+        String extStorageState = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(extStorageState)) {
+            return true;
+        }
+        return false;
+    }
+    private static boolean isExternalStorageAvailable() {
+        String extStorageState = Environment.getExternalStorageState();
+        if (Environment.MEDIA_MOUNTED.equals(extStorageState)) {
+            return true;
+        }
+        return false;
+    }
+    public String getPathFromURI(Uri contentUri) {
+        String res = null;
+        String[] proj = {MediaStore.Images.Media.DATA};
+        Cursor cursor = getActivity().getContentResolver().query(contentUri, proj, null, null, null);
+        if (cursor.moveToFirst()) {
+            int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+            res = cursor.getString(column_index);
+        }
+        cursor.close();
+        return res;
+    }
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data){
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_IMAGE) {
+            try {
+                if (resultCode == RESULT_OK) {
+                    Uri selectedImageUri = data.getData();
+                    // Get the path from the Uri
+                    final String path = getPathFromURI(selectedImageUri);
+                    if (path != null) {
+                        File f = new File(path);
+                        selectedImageUri = Uri.fromFile(f);
+                    }
+                    // Set the image to qrcode decode.
+                    qrcodeActionGetQRCode(selectedImageUri);
+                }
+            } catch (Exception e) {
+                Log.e("FileSelectorActivity", "File select error", e);
+            }
+        }
+    }
+    private void qrcodeActionGetQRCode(Uri selectedImageUri){
+        BarcodeScanner barcodeScanner =
+            BarcodeScanning.getClient(
+                new BarcodeScannerOptions.Builder()
+                    .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                    .build());
+        try {
+            InputImage image = InputImage.fromFilePath(getContext(),selectedImageUri);
+            Task<List<Barcode>> task = barcodeScanner.process(image);
+            task.addOnSuccessListener(new OnSuccessListener<List<Barcode>>() {
+                @Override
+                public void onSuccess(List<Barcode> barcodes) {
+                    if(barcodes.isEmpty()){
+                        popNotice("not support this image");
+                    } else {
+                        for (Barcode barcode : barcodes) {
+                            try {
+                                JSONObject jsonObject = new JSONObject(barcode.getRawValue());
+                                SunionTokenStatus token = SunionTokenStatus.decodeTokenExchangeData(jsonObject);
+                                popNotice(token.toString());
+                                service.setLockStorageToken(token.exchange_index,token);
+                                saveToken(token.getToken(),token.isTokenOnceUse());
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                                popNotice("not support this qrcode");
+                            }
+                        }
+                    }
+                }
+            }).addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    // Task failed with an exception
+                    // ...
+                    popNotice("not support.");
+                }
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    private void qrcodeActionGet() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (getActivity().checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                builder.setTitle(R.string.file_permission_title);
+                builder.setMessage(R.string.file_permission_message);
+                builder.setPositiveButton(android.R.string.ok,
+                        (dialog, which) -> requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 0));
+                builder.show();
+                return;
+            }
+        }
+        if (isExternalStorageReadOnly() || isExternalStorageAvailable()){
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("image/*");
+            startActivityForResult(Intent.createChooser(intent, "Select QRCode"),PICK_IMAGE);
+        } else {
+            popNotice("not support.");
+            return;
+        }
+    }
+    private void qrcodeActionShowCode(){
+        View view = LayoutInflater.from(this.getContext()) .inflate(R.layout.popqrcode_layout, null);
+        popupWindow = new PopupWindow(view); popupWindow.setWidth(ViewGroup.LayoutParams.WRAP_CONTENT); popupWindow.setHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
+        popupWindow.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
+        popupWindow.setFocusable(true);
+        popupWindow.setOutsideTouchable(false);
+        popupWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        btnConfirm = (Button) view.findViewById(R.id.qrcode_conform);
+        btnConfirm.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                popupWindow.dismiss();
+            }
+        });
+        LinearLayout layout = (LinearLayout) view.findViewById(R.id.qrcode_context_layout);
+
+        TextView qrcode_head = (TextView) view.findViewById(R.id.qrcode_head);
+        SunionTokenStatus tmp = service.getLockStorageToken(command_args.qrcode_select);
+        qrcode_head.setText("index : " + command_args.qrcode_select + " token : " + CodeUtils.bytesToHex(tmp.getToken()).substring(0,6) + "...");
+        if (tmp.getToken() != null){
+            if (tmp.getToken().length <= 0) {
+                popNotice("useless token");
+                popupWindow.dismiss();
+                return;
+            }
+        } else {
+            popNotice("useless token");
+            popupWindow.dismiss();
+            return;
+        }
+        tmp.exchange_index = command_args.qrcode_select;
+        WindowManager manager = (WindowManager) getActivity().getSystemService(WINDOW_SERVICE);
+        Display display = manager.getDefaultDisplay();
+        Point point = new Point();
+        display.getSize(point);
+        int width = point.x;
+        int height = point.y;
+        int smallerDimension = width < height ? width : height;
+        smallerDimension = smallerDimension * 3 / 4;
+        // Initializing the QR Encoder with your value to be encoded, type you required and Dimension
+        QRGEncoder qrgEncoder = new QRGEncoder(tmp.getTokenExchangeData(), null, QRGContents.Type.TEXT, smallerDimension);
+        qrgEncoder.setColorBlack(Color.BLACK);
+        qrgEncoder.setColorWhite(Color.WHITE);
+        try {
+            // Getting QR-Code as Bitmap & Setting Bitmap to ImageView
+            ImageView imageView = new ImageView(this.getContext());
+            imageView.setImageBitmap(qrgEncoder.getBitmap());
+            layout.addView(imageView);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        popupWindow.showAtLocation(this.getView(), Gravity.CENTER_HORIZONTAL, 0, 0);
+    }
+    private void qrcodeActionShow1(){
+        int default_item = 0;
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        command_args.token_store = true;
+        builder.setTitle("Token Qrcode")
+                .setSingleChoiceItems(getResources().getStringArray(R.array.qrcode_action_show), 0, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        switch(which){
+                            case 0:
+                                command_args.token_store = true;
+                                break;
+                            case 1:
+                                command_args.token_store = false;
+                                break;
+                        }
+                    }
+                }).setPositiveButton("Next", new DialogInterface.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.N)
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                if (command_args.token_store){
+                    SunionTokenStatus tmp = service.getLockStorageToken(command_args.qrcode_select);
+                    if (tmp.getToken() != null){
+                        if (tmp.getToken().length > 0) {
+                            //pass
+                            popNotice("set token : " + CodeUtils.bytesToHex(tmp.getToken()).substring(0,6) + "...");
+                            saveToken(tmp.getToken(),tmp.isTokenOnceUse());
+                        } else {
+                            popNotice("useless token");
+                            popupWindow.dismiss();
+                            return;
+                        }
+                    } else {
+                        popNotice("useless token");
+                        popupWindow.dismiss();
+                        return;
+                    }
+                } else {
+                    qrcodeActionShowCode();
+                }
+                dialog.dismiss();
+            }
+        });
+        builder.create().show();
+    }
+    private void qrcodeActionShow(){
+        Boolean check_init = false;
+        String[] token_array = new String[10];
+        for(int i = 0 ; i < 10 ; i++){
+            if (service.getLockStorageToken(i) != null) {
+                token_array[i] = "index " + i + " " + service.getLockStorageToken(i).getTokenAd();
+            } else {
+                token_array[i] = "index " + i + " none";
+                check_init = true;
+            }
+        }
+        int default_item = 0;
+        final Boolean need_init = check_init;
+        command_args.qrcode_select = default_item;
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle("Token ...")
+                .setSingleChoiceItems(token_array, default_item, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        command_args.qrcode_select = which;
+                    }
+                }).setPositiveButton("Next", new DialogInterface.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.N)
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                if (!need_init){
+                    qrcodeActionShow1();
+                } else {
+                    popNotice("Need get token array and query token");
+                }
+                dialog.dismiss();
+            }
+        });
+        builder.create().show();
+    }
+    private void qrcodeActionSelect(){
+        int default_item = SunionControlStatus.QRCODE_ACTION_SHOW;
+        command_args.qrcode_action = default_item;
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle("Token Qrcode")
+                .setSingleChoiceItems(getResources().getStringArray(R.array.qrcode_action), default_item, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        switch(which){
+                            case 0:
+                                command_args.qrcode_action = SunionControlStatus.QRCODE_ACTION_GET;
+                                break;
+                            case 1:
+                                command_args.qrcode_action = SunionControlStatus.QRCODE_ACTION_SHOW;
+                                break;
+                        }
+                    }
+                }).setPositiveButton("Next", new DialogInterface.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.N)
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                switch(command_args.qrcode_action){
+                    case SunionControlStatus.QRCODE_ACTION_GET:
+                        qrcodeActionGet();
+                        break;
+                    case SunionControlStatus.QRCODE_ACTION_SHOW:
+                        qrcodeActionShow();
+                        break;
+                }
+                dialog.dismiss();
+            }
+        });
+        builder.create().show();
     }
 
     private void errorToast(String message){
@@ -1464,6 +1893,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 receiveText.append(spn);
             }
             service.write(data,current_command,command_step);
+            getActivity().findViewById(R.id.send_btn).setEnabled(false);
+            getActivity().findViewById(R.id.send_btn).setBackground(getResources().getDrawable(R.drawable.ic_send_cancel_white_24dp));
         } catch (Exception e) {
             onSerialIoError(e);
         }
@@ -1525,27 +1956,42 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void saveToken(byte[] token){
+        saveToken(token , false);
+    }
+
+    private void saveToken(byte[] token , Boolean once_use){
         this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).edit().putString(CodeUtils.ConnectionTokenFileName,CodeUtils.bytesToHex(token)).commit();
+        this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).edit().putString(CodeUtils.ConnectionTokenFileOnceUse,(once_use)?"T":"F").commit();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    private byte[] readToken(){
+    private void readToken(){
         String s = this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).getString(CodeUtils.ConnectionTokenFileName, "");
+        String once_use = this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).getString(CodeUtils.ConnectionTokenFileOnceUse, "");
         if ( CodeUtils.isHexString(s) ){
             byte[] token = CodeUtils.hexStringToBytes(s);
             if (token.length > 0){
-                service.setSecretLockToken(new SunionTokenStatus(true,false,token,new byte[]{}));
-                return token;
+                command_args.current_token = token;
+                if (once_use.length() > 0){
+                    if (once_use == "T"){
+                        command_args.current_token_once_use = true;
+                    } else {
+                        command_args.current_token_once_use = false;
+                    }
+                }
             } else {
-                return service.lock_token.getBytes(StandardCharsets.US_ASCII);
+                command_args.current_token_once_use = true;
+                command_args.current_token = service.lock_token.getBytes(StandardCharsets.US_ASCII);
             }
         } else {
-            return service.lock_token.getBytes(StandardCharsets.US_ASCII);
+            command_args.current_token_once_use = true;
+            command_args.current_token = service.lock_token.getBytes(StandardCharsets.US_ASCII);
         }
     }
 
     private void deleteToken(){
         this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).edit().putString(CodeUtils.ConnectionTokenFileName,"").commit();
+        this.getContext().getSharedPreferences(CodeUtils.ConnectionTokenFileName, this.getContext().MODE_PRIVATE).edit().putString(CodeUtils.ConnectionTokenFileOnceUse,"").commit();
         service.setSecretLockToken(new SunionTokenStatus(false));
     }
 

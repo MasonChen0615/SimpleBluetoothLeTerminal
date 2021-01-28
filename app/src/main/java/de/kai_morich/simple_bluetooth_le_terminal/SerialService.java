@@ -18,12 +18,8 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
@@ -416,6 +412,12 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    public void resetConnectionAESKey(){
+        synchronized (this) {
+            this.connection_aes_key = null;
+        }
+    }
+
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public SecretKey getConnectionAESKey(){
         synchronized (this) {
@@ -604,6 +606,9 @@ public class SerialService extends Service implements SerialListener {
                     byte[] xorkey = this.sunionConnectionAESKey();
                     setConnectionAESKey(new SecretKeySpec(xorkey, 0, xorkey.length, "AES"));
                     resetCommandState();
+                    Log.i(Constants.DEBUG_TAG, "row vi:" + commandPackage.getCommandVI());
+                    Log.i(Constants.DEBUG_TAG, "row command:" + CodeUtils.bytesToHex(new byte[]{commandPackage.getCommand()}));
+                    Log.i(Constants.DEBUG_TAG, "row payload:" + CodeUtils.bytesToHex(commandPackage.getData()));
                 }
                 break;
             case CodeUtils.Connect :  // same CodeUtils.UsingOnceTokenConnect
@@ -786,26 +791,10 @@ public class SerialService extends Service implements SerialListener {
                 if (checkCommandIncome(commandPackage,CodeUtils.InquireLockConfig)){
                     byte[] payload = commandPackage.getData();
                     if (payload.length == 21) {
-//                        1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知
-//                        2	1	聲音 1:開啟, 0:關閉
-//                        3	1	假期模式 1:開啟, 0:關閉
-//                        4	1	自動上鎖 1:開啟, 0:關閉
-//                        5	1	自動上鎖時間 10~99
-//                        6 ~ 21 location
+
+                        SunionLockStatus config = SunionLockStatus.decodeLockConfigPayload(payload);
                         printMessage(Constants.CMD_NAME_0xD4 + " config start");
-                        printMessage("lock status:" + CodeUtils.bytesToHex( new byte[]{payload[0]}));
-                        printMessage("keypress beep:" + CodeUtils.bytesToHex( new byte[]{payload[1]}));
-                        printMessage("vacation mode:" + CodeUtils.bytesToHex( new byte[]{payload[2]}));
-                        printMessage("autolock:" + CodeUtils.bytesToHex( new byte[]{payload[3]}));
-                        printMessage("autolock delay:" + CodeUtils.bytesToHex( new byte[]{payload[4]}));
-                        byte[] location = new byte[16];
-                        for (int i = 0 ; i < 16 ; i++){
-                            location[i] = payload[i+5];
-                        }
-                        double[] decode_location = SunionLockStatus.decodeGeographicLocation(location);
-                        DecimalFormat df = new DecimalFormat("###.#####");
-                        printMessage("latitude:" + df.format(decode_location[SunionLockStatus.LATITUDE]));
-                        printMessage("longitude:" + df.format(decode_location[SunionLockStatus.LONGITUDE]));
+                        printMessage(config.configToString());
                         printMessage(Constants.CMD_NAME_0xD4 + " config end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xD4 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
@@ -832,27 +821,11 @@ public class SerialService extends Service implements SerialListener {
                 break;
             case CodeUtils.InquireLockState:
                 if (commandPackage.getCommand() == CodeUtils.InquireLockState) {  // default action.
-//                    1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知
-//                    2	1	聲音 1:開啟, 0:關閉
-//                    3	1	假期模式 1:開啟, 0:關閉
-//                    4	1	自動上鎖 1:開啟, 0:關閉
-//                    5	1	自動上鎖時間 10~99
-//                    6	1	是否上鎖 1:開啟, 0:關閉, other:未知
-//                    7	1	電池電量 0 ~ 100
-//                    8	1	電量警告 2:危險, 1:弱電, 0:正常
-//                    9 ~ 12	4	TimeStamp (Unix)
                     byte[] payload = commandPackage.getData();
                     if (payload.length == 12) {
+                        SunionLockStatus status = SunionLockStatus.decodeLockStatusPayload(payload);
                         printMessage(Constants.CMD_NAME_0xD6 + " status report start");
-                        printMessage("lock status:" + CodeUtils.bytesToHex(new byte[]{payload[0]}));
-                        printMessage("keypress beep:" + CodeUtils.bytesToHex(new byte[]{payload[1]}));
-                        printMessage("vacation mode:" + CodeUtils.bytesToHex(new byte[]{payload[2]}));
-                        printMessage("autolock:" + CodeUtils.bytesToHex(new byte[]{payload[3]}));
-                        printMessage("autolock delay:" + CodeUtils.bytesToHex(new byte[]{payload[4]}));
-                        printMessage("deadbolt:" + CodeUtils.bytesToHex(new byte[]{payload[5]}));
-                        printMessage("battery:" + CodeUtils.bytesToHex(new byte[]{payload[6]}));
-                        printMessage("battery alarm:" + CodeUtils.bytesToHex(new byte[]{payload[7]}));
-                        printMessage("timestamp:" + CodeUtils.littleEndianToInt(new byte[]{payload[8],payload[9],payload[10],payload[11]}));
+                        printMessage(status.statusToString());
                         printMessage(Constants.CMD_NAME_0xD6 + " status report end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xD6 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
@@ -862,27 +835,11 @@ public class SerialService extends Service implements SerialListener {
                 break;
             case CodeUtils.SetLockState:
                 if (commandPackage.getCommand() == CodeUtils.InquireLockState) {  // default action.
-//                    1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知
-//                    2	1	聲音 1:開啟, 0:關閉
-//                    3	1	假期模式 1:開啟, 0:關閉
-//                    4	1	自動上鎖 1:開啟, 0:關閉
-//                    5	1	自動上鎖時間 10~99
-//                    6	1	是否上鎖 1:開啟, 0:關閉, other:未知
-//                    7	1	電池電量 0 ~ 100
-//                    8	1	電量警告 2:危險, 1:弱電, 0:正常
-//                    9 ~ 12	4	TimeStamp (Unix)
                     byte[] payload = commandPackage.getData();
                     if (payload.length == 12) {
+                        SunionLockStatus status = SunionLockStatus.decodeLockStatusPayload(payload);
                         printMessage(Constants.CMD_NAME_0xD7 + " status report start");
-                        printMessage("lock status:" + CodeUtils.bytesToHex(new byte[]{payload[0]}));
-                        printMessage("keypress beep:" + CodeUtils.bytesToHex(new byte[]{payload[1]}));
-                        printMessage("vacation mode:" + CodeUtils.bytesToHex(new byte[]{payload[2]}));
-                        printMessage("autolock:" + CodeUtils.bytesToHex(new byte[]{payload[3]}));
-                        printMessage("autolock delay:" + CodeUtils.bytesToHex(new byte[]{payload[4]}));
-                        printMessage("deadbolt:" + CodeUtils.bytesToHex(new byte[]{payload[5]}));
-                        printMessage("battery:" + CodeUtils.bytesToHex(new byte[]{payload[6]}));
-                        printMessage("battery alarm:" + CodeUtils.bytesToHex(new byte[]{payload[7]}));
-                        printMessage("timestamp:" + CodeUtils.littleEndianToInt(new byte[]{payload[8],payload[9],payload[10],payload[11]}));
+                        printMessage(status.statusToString());
                         printMessage(Constants.CMD_NAME_0xD7 + " status report end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xD7 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
@@ -894,8 +851,8 @@ public class SerialService extends Service implements SerialListener {
                 if (checkCommandIncome(commandPackage,CodeUtils.InquireLogCount)){
                     byte[] payload = commandPackage.getData();
                     if (payload.length == 1) {
-                        printMessage(Constants.CMD_NAME_0xE0 + " allow , history size :" + CodeUtils.bytesToHex( new byte[]{payload[0]}));
                         int i2 = payload[0] & 0xFF;  // default byte in java is sign value , but our byte are un-sign , so we need convert it with 0xff.
+                        printMessage(Constants.CMD_NAME_0xE0 + " allow , history size :" + i2 + " items");
                         setLockLogCurrentNumber(i2);
                         exchangeTag(Constants.EXCHANGE_TAG_0xE0_PREFIX);
                     } else {
@@ -912,8 +869,16 @@ public class SerialService extends Service implements SerialListener {
                     byte[] payload = commandPackage.getData();
                     if (payload.length >= 5) {
                         printMessage(Constants.CMD_NAME_0xE1 + " status report start");
-                        printMessage("timestamp:" + CodeUtils.littleEndianToInt(new byte[]{payload[0],payload[1],payload[2],payload[3]}));
-                        printMessage("event:" + CodeUtils.bytesToHex(new byte[]{payload[4]}));
+                        Date time = CodeUtils.convertDate(CodeUtils.littleEndianToInt(new byte[]{payload[0],payload[1],payload[2],payload[3]}));
+                        printMessage("timestamp:" + time.toString());
+                        printMessage("event:" + SunionLockLog.getLogTypeString(payload[4]));
+                        if (payload.length > 5) {
+                            byte[] name = new byte[payload.length - 5];
+                            for(int i = 5 ; i < payload.length ; i++){
+                                name[i-5] = payload[i];
+                            }
+                            printMessage("name:" + new String(name,StandardCharsets.US_ASCII));
+                        }
                         printMessage(Constants.CMD_NAME_0xE1 + " status report end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xE1 + " but length short than 5 : " + CodeUtils.bytesToHex(payload));
@@ -1110,6 +1075,40 @@ public class SerialService extends Service implements SerialListener {
                         printMessage(Constants.CMD_NAME_0xEB + " status report end");
                     } else {
                         printMessage(Constants.CMD_NAME_0xEB + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
+                break;
+            case CodeUtils.NewAdminPinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.NewAdminPinCode)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xC7 + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xC7 + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xC7 + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xC7 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
+                break;
+            case CodeUtils.ModifyAdminPinCode:
+                if (checkCommandIncome(commandPackage,CodeUtils.ModifyAdminPinCode)){
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xC8 + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xC8 + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xC8 + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xC8 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
                     }
                     resetCommandState();
                 }
