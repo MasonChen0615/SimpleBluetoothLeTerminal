@@ -1,6 +1,7 @@
 package de.kai_morich.simple_bluetooth_le_terminal.payload;
 
 import java.text.DecimalFormat;
+import java.util.Date;
 
 import de.kai_morich.simple_bluetooth_le_terminal.CodeUtils;
 
@@ -122,15 +123,15 @@ public class SunionLockStatus {
     }
 
     public static SunionLockStatus decodeLockStatusPayload(byte[] data){
-//        1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知, 0xA3 忽視
-//        2	1	聲音 1:開啟, 0:關閉
-//        3	1	假期模式 1:開啟, 0:關閉
-//        4	1	自動上鎖 1:開啟, 0:關閉
-//        5	1	自動上鎖時間 10~99
-//        6	1	是否上鎖 1:開啟, 0:關閉, other:未知
-//        7	1	電池電量 0 ~ 100
-//        8	1	電量警告 2:危險, 1:弱電, 0:正常
-//        9 ~ 12	4	TimeStamp (Unix)
+//       1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知, 0xA3 忽視
+//       2	1	聲音 1:開啟, 0:關閉
+//       3	1	假期模式 1:開啟, 0:關閉
+//       4	1	自動上鎖 1:開啟, 0:關閉
+//       5	1	自動上鎖時間 10~99
+//       6	1	是否上鎖 1:開啟, 0:關閉, other:未知
+//       7	1	電池電量 0 ~ 100
+//       8	1	電量警告 2:危險, 1:弱電, 0:正常
+//       9 ~ 12	4	TimeStamp (Unix)
         SunionLockStatus status = new SunionLockStatus();
         if (data.length < 12) {
             return status;
@@ -146,6 +147,31 @@ public class SunionLockStatus {
         byte[] array= {data[8], data[9], data[10], data[11]};
         status.timestamp = CodeUtils.littleEndianToInt(array);
         return status;
+    }
+    public static SunionLockStatus decodeLockConfigPayload(byte[] data){
+//      1	1	鎖體方向 0xA0:右鎖, 0xA1:左鎖, 0xA2:未知
+//      2	1	聲音 1:開啟, 0:關閉
+//      3	1	假期模式 1:開啟, 0:關閉
+//      4	1	自動上鎖 1:開啟, 0:關閉
+//      5	1	自動上鎖時間 10~99
+//      6 ~ 21 location
+        SunionLockStatus config = new SunionLockStatus();
+        if (data.length < 21) {
+            return config;
+        }
+        config.lock_status = data[0];
+        config.keypress_beep = data[1];
+        config.vacation_mode = data[2];
+        config.autolock = data[3];
+        config.autolock_delay = data[4];
+        byte[] location = new byte[16];
+        for (int i = 0 ; i < 16 ; i++){
+            location[i] = data[i+5];
+        }
+        double[] decode_location = decodeGeographicLocation(location);
+        config.latitude = decode_location[SunionLockStatus.LATITUDE];
+        config.longitude = decode_location[SunionLockStatus.LONGITUDE];
+        return config;
     }
 
     public byte getDeadBolt(){
@@ -176,6 +202,89 @@ public class SunionLockStatus {
         notice += " 自動上鎖時間:" + delay + " sec";
         DecimalFormat df = new DecimalFormat("###.#####");
         notice += "latitude:" + df.format(this.latitude) + " " + "longitude:" + df.format(this.longitude);
+        return notice;
+    }
+
+    public String configToString(){
+        String notice = "";
+        switch(lock_status){
+            case (byte)0xA0:
+                notice += "lock status: right hand lock\n";
+                break;
+            case (byte)0xA1:
+                notice += "lock status: left hand lock\n";
+                break;
+            case (byte)0xA2:
+                notice += "lock status: need check right/left hand lock\n";
+                break;
+            case (byte)0xA3:
+            default:
+                notice += "lock status: skip\n";
+                break;
+        }
+        notice += "keypress beep: " + ((this.keypress_beep == (byte)0x01)?"on":"off") + "\n";
+        notice += "vacation mode: " + ((this.vacation_mode == (byte)0x01)?"on":"off")+ "\n";
+        notice += "autolock: " + ((this.autolock == (byte)0x01)?"on":"off")+ "\n";
+        int delay = this.autolock_delay & 0xff;
+        notice += "autolock delay: " + delay + " sec\n";
+        DecimalFormat df = new DecimalFormat("###.#####");
+        notice += "latitude:" + df.format(this.latitude)+ "\n";
+        notice += "longitude:" + df.format(this.longitude);
+        return notice;
+    }
+    public String statusToString(){
+        String notice = "";
+        switch(lock_status){
+            case (byte)0xA0:
+                notice += "lock status: right hand lock\n";
+                break;
+            case (byte)0xA1:
+                notice += "lock status: left hand lock\n";
+                break;
+            case (byte)0xA2:
+                notice += "lock status: need check right/left hand lock\n";
+                break;
+            case (byte)0xA3:
+            default:
+                notice += "lock status: skip\n";
+                break;
+        }
+        notice += "keypress beep: " + ((this.keypress_beep == (byte)0x01)?"on":"off") + "\n";
+        notice += "vacation mode: " + ((this.vacation_mode == (byte)0x01)?"on":"off")+ "\n";
+        notice += "autolock: " + ((this.autolock == (byte)0x01)?"on":"off")+ "\n";
+        int delay = this.autolock_delay & 0xff;
+        notice += "autolock delay: " + delay + " sec\n";
+        switch(this.dead_bolt){
+            case (byte)0x00:
+                notice += "deadbolt: unlock\n";
+                break;
+            case (byte)0x01:
+                notice += "deadbolt: lock\n";
+                break;
+            default:
+                notice += "deadbolt: unknown\n";
+                break;
+        }
+//        byte[] array= {data[8], data[9], data[10], data[11]};
+//        status.timestamp = CodeUtils.littleEndianToInt(array);
+        int i2_battery = this.battery & 0xff;
+        notice += "battery: " + i2_battery + " %\n";
+        switch(this.low_battery){
+            case (byte) 0x00:
+                notice += "battery alarm: normal\n";
+                break;
+            case (byte) 0x01:
+                notice += "battery alarm: low battery\n";
+                break;
+            case (byte) 0x02:
+                notice += "battery alarm: need replacement\n";
+                break;
+            default:
+                notice += "battery alarm: unknown\n";
+                break;
+        }
+        Date time = CodeUtils.convertDate(this.timestamp);
+        notice += "timestamp: " + time.toString();
         return notice;
     }
 }
