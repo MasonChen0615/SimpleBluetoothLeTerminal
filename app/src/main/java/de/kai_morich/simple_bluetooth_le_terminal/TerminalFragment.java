@@ -1180,11 +1180,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     );
                     break;
                 case Constants.CMD_0xE7:
-                    test_name = new String (command_args.token.getTokenName(), StandardCharsets.US_ASCII) ;
-                    tmp = test_name.getBytes(StandardCharsets.US_ASCII);
-                    data = new byte[test_name.length() + 1];
+                    tmp = command_args.token.getTokenName();
+                    data = new byte[tmp.length + 1];
                     data[0] = (byte) command_args.getTokenIndex(false);
-                    popNotice("modify token index is " + ((int)(data[0] & (byte)0xff)) + " and name: " + test_name);
+                    popNotice("modify token index is " + ((int)(data[0] & (byte)0xff)) + " and name: " + new String(tmp,StandardCharsets.US_ASCII));
                     for ( int i = 1 ; i < data.length ; i++ ) {
                         data[i] = tmp[i-1];
                     }
