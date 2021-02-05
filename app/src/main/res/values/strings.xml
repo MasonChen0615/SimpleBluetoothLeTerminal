@@ -34,6 +34,8 @@
     <string name="Command_CMD_0xC8_Arg0_Message">4 digital ~ 6 digital</string>
     <string name="Command_CMD_0xC8_Arg1">New PinCode</string>
     <string name="Command_CMD_0xC8_Arg1_Message">4 digital ~ 6 digital</string>
+    <string name="Command_CMD_0xCE_Arg0">Admin PinCode</string>
+    <string name="Command_CMD_0xCE_Arg0_Message">4 digital ~ 6 digital</string>
 
     <string name="Command_CMD_0xD1_Arg0">鎖體名稱</string>
     <string name="Command_CMD_0xD1_Arg0_Message">1 ~ 20 Byte</string>

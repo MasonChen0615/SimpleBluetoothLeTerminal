@@ -91,10 +91,11 @@ public class DevicesFragment extends ListFragment {
                     view = getActivity().getLayoutInflater().inflate(R.layout.device_list_item, parent, false);
                 TextView text1 = view.findViewById(R.id.text1);
                 TextView text2 = view.findViewById(R.id.text2);
-                if(device.getName() == null || device.getName().isEmpty())
+                if(device.getName() == null || device.getName().isEmpty()) {
                     text1.setText("<unnamed>");
-                else
+                }else {
                     text1.setText(device.getName());
+                }
                 text2.setText(device.getAddress());
                 return view;
             }
@@ -247,6 +248,7 @@ public class DevicesFragment extends ListFragment {
             return;
         if(listItems.indexOf(device) < 0) {
             listItems.add(device);
+
             Collections.sort(listItems, DevicesFragment::compareTo);
             listAdapter.notifyDataSetChanged();
         }

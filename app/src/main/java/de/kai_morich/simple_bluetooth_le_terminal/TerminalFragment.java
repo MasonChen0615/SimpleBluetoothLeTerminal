@@ -888,6 +888,33 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     }
                 };
                 break;
+            case Constants.CMD_0xCE:
+                //PinCode
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xCE_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xCE_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
+                edit_command_arg[0].setText(command_args.pincode.getReadablePincode());
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        command_args.setPincodeIndex(0);
+                        command_args.pincode.enable  = true;
+                        command_args.pincode.setPincode(edit_command_arg[0].getText().toString());
+                        byte weekday = SunionPincodeSchedule.WEEK_MON | SunionPincodeSchedule.WEEK_TUE | SunionPincodeSchedule.WEEK_WED | SunionPincodeSchedule.WEEK_THUR | SunionPincodeSchedule.WEEK_FRI | SunionPincodeSchedule.WEEK_SAT | SunionPincodeSchedule.WEEK_SUN;
+                        command_args.pincode.schedule = new SunionPincodeSchedule(
+                                SunionPincodeSchedule.ALL_DAY,
+                                weekday,
+                                SunionPincodeSchedule.WEEK_TIME_MIN,
+                                SunionPincodeSchedule.WEEK_TIME_MAX,
+                                SunionPincodeSchedule.SEEK_TIME_MIN,
+                                SunionPincodeSchedule.SEEK_TIME_MAX
+                        );
+                        command_args.pincode.setName("Admin pincode");
+                    }
+                };
+                break;
             case Constants.CMD_0xEC:
             case Constants.CMD_0xED:
                 //Index
@@ -973,7 +1000,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 };
                 break;
             case Constants.CMD_0xCC:
-            case Constants.CMD_0xCE:
             case Constants.CMD_0xD0:
             case Constants.CMD_0xD2:
             case Constants.CMD_0xD4:
@@ -1081,7 +1107,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     commandNormal(CodeUtils.DirectionCheck,(byte) 0x00,new byte[]{});
                     break;
                 case Constants.CMD_0xCE:
-                    commandNormal(CodeUtils.FactoryReset,(byte) 0x00,new byte[]{});
+                    data = new byte[1+command_args.pincode.pincode.length];
+                    data[0] = (byte) command_args.pincode.pincode.length;
+                    popNotice("FactoryReset with admin pincode verify");
+                    for (int i = 1 ; i < data.length ; i++) {
+                        data[i] = command_args.pincode.pincode[i-1];
+                    }
+                    commandNormal(CodeUtils.FactoryReset,(byte)data.length,data);
                     break;
                 case Constants.CMD_0xD0:
                     commandNormal(CodeUtils.InquireLockName,(byte) 0x00,new byte[]{});

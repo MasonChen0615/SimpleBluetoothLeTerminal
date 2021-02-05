@@ -247,6 +247,7 @@ class SerialSocket extends BluetoothGattCallback {
         boolean sync = true;
         writePending = false;
         for (BluetoothGattService gattService : gatt.getServices()) {
+            Log.i(Constants.DEBUG_TAG, device.getName() + "device Service.getUuid :" + gattService.getUuid());
             if (gattService.getUuid().equals(BLUETOOTH_LE_CC254X_SERVICE))
                 delegate = new Cc245XDelegate();
             if (gattService.getUuid().equals(BLUETOOTH_LE_RN4870_SERVICE))
