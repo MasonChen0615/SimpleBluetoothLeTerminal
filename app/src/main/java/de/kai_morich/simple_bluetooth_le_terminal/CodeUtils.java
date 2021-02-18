@@ -52,6 +52,8 @@ public class CodeUtils {
     public static final byte SetLockConfig = (byte) 0xD5;
     public static final byte InquireLockState = (byte) 0xD6;
     public static final byte SetLockState = (byte) 0xD7;
+    public static final byte InquireLockTimeZone = (byte) 0xD8;
+    public static final byte SetLockTimeZone = (byte) 0xD9;
     public static final byte InquireLogCount = (byte) 0xE0;
     public static final byte InquireLog = (byte) 0xE1;
     public static final byte DeleteLog = (byte) 0xE2;

@@ -84,7 +84,9 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
+import java.util.TimeZone;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -682,6 +684,32 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     }
                 };
                 break;
+            case Constants.CMD_0xD9:
+                command_arg[0].setVisibility(View.VISIBLE);
+                command_arg[0].setText(R.string.Command_CMD_0xD9_Arg0);
+                edit_command_arg[0].setVisibility(View.VISIBLE);
+                edit_command_arg[0].setHint(R.string.Command_CMD_0xD9_Arg0_Message);
+                edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_SIGNED);
+                edit_command_arg[0].setText(String.format("%.2f", (double)(TimeZone.getDefault().getRawOffset() / 3600 /1000)));
+                command_arg[1].setVisibility(View.VISIBLE);
+                command_arg[1].setText(R.string.Command_CMD_0xD9_Arg1);
+                edit_command_arg[1].setVisibility(View.VISIBLE);
+                edit_command_arg[1].setHint(R.string.Command_CMD_0xD9_Arg1_Message);
+                edit_command_arg[1].setInputType(InputType.TYPE_CLASS_TEXT);
+                edit_command_arg[1].setText(TimeZone.getDefault().getID());
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        command_args.config_status.setTimeZone(edit_command_arg[1].getText().toString());
+                        try {
+                            command_args.config_status.setTimeZoneOffset(Float.parseFloat(edit_command_arg[0].getText().toString()));
+
+                        } catch (NumberFormatException e){
+                            command_args.config_status.setTimeZoneOffset(0);
+                        }
+                    }
+                };
+                break;
             case Constants.CMD_0xE1:
                 if (service.getLockLogCurrentNumber() >= 0) {
                     command_args.setLogCurrentNumber(service.getLockLogCurrentNumber());
@@ -1004,6 +1032,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             case Constants.CMD_0xD2:
             case Constants.CMD_0xD4:
             case Constants.CMD_0xD6:
+            case Constants.CMD_0xD8:
             case Constants.CMD_0xE0:
             case Constants.CMD_0xE4:
             case Constants.CMD_0xEA:
@@ -1167,6 +1196,21 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     data[0] = command_args.config_status.dead_bolt;
                     commandNormal(CodeUtils.SetLockState,(byte) data.length,data);
                     popNotice((command_args.config_status.dead_bolt == SunionLockStatus.DEAD_BOLT_LOCK)?"lock":"unlock");
+                    break;
+                case Constants.CMD_0xD8:
+                    commandNormal(CodeUtils.InquireLockTimeZone,(byte) 0x00,new byte[]{});
+                    break;
+                case Constants.CMD_0xD9:
+                    byte[] time_offset = command_args.config_status.getTimeZoneOffset();
+                    int payload_len = time_offset.length + command_args.config_status.time_zone.length;
+                    data = new byte[payload_len];
+                    for(int i = 0; i < 4 ; i++){
+                        data[i] = time_offset[i];
+                    }
+                    for(int i = 4; i < payload_len ; i++){
+                        data[i] = command_args.config_status.time_zone[i-4];
+                    }
+                    commandNormal(CodeUtils.SetLockTimeZone,(byte) data.length,data);
                     break;
                 case Constants.CMD_0xE0:
                     commandNormal(CodeUtils.InquireLogCount,(byte) 0x00,new byte[]{});

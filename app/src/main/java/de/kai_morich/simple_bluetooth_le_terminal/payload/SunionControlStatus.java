@@ -53,6 +53,8 @@ public class SunionControlStatus {
                 30,
                 SunionLockStatus.DEAD_BOLT_LOCK
         );
+        this.config_status.time_offset = 0;
+        this.config_status.time_zone = new byte[]{0,0,0,0,0,0,0,0};
         this.token = new SunionTokenStatus(
                 true,
                 true,

@@ -847,6 +847,36 @@ public class SerialService extends Service implements SerialListener {
                     resetCommandState();
                 }
                 break;
+            case CodeUtils.InquireLockTimeZone:
+                if (commandPackage.getCommand() == CodeUtils.InquireLockTimeZone) {  // default action.
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length >= 4) {
+                        printMessage(Constants.CMD_NAME_0xD8 + " status report start");
+                        printMessage(SunionLockStatus.decodeTimeZonePayloadToString(payload));
+                        printMessage(Constants.CMD_NAME_0xD8 + " status report end");
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xD8 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
+                break;
+            case CodeUtils.SetLockTimeZone:
+                if (commandPackage.getCommand() == CodeUtils.SetLockTimeZone) {  // default action.
+                    byte[] payload = commandPackage.getData();
+                    if (payload.length == 1) {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xD9 + " allow");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xD9 + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xD9 + " unknown return : " + CodeUtils.bytesToHex(payload));
+                        }
+                    } else {
+                        printMessage(Constants.CMD_NAME_0xD9 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+                    }
+                    resetCommandState();
+                }
+                break;
             case CodeUtils.InquireLogCount:
                 if (checkCommandIncome(commandPackage,CodeUtils.InquireLogCount)){
                     byte[] payload = commandPackage.getData();

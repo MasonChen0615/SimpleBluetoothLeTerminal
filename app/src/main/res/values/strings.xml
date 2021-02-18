@@ -48,6 +48,11 @@
     <string name="Command_CMD_0xD5_Arg4">自動上鎖時間</string>
     <string name="Command_CMD_0xD5_Arg4_Message">10~99</string>
     <string name="Command_CMD_0xD7_Arg0">設定鎖體狀態</string>
+    <string name="Command_CMD_0xD8_Arg0">查詢鎖體時區</string>
+    <string name="Command_CMD_0xD9_Arg0">設定鎖體時區(hr)</string>
+    <string name="Command_CMD_0xD9_Arg0_Message">±24.0</string>
+    <string name="Command_CMD_0xD9_Arg1">設定鎖體時區</string>
+    <string name="Command_CMD_0xD9_Arg1_Message">city short name</string>
     <string name="Command_CMD_0xE1_Arg0">Index</string>
     <string name="Command_CMD_0xE1_Arg0_Message">0 ~ 249</string>
     <string name="Command_CMD_0xE2_Arg0">Count</string>

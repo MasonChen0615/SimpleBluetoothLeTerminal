@@ -41,7 +41,9 @@ class Constants {
     static final int CMD_0xD5 = CMD_0xD4 + 1 ; //	設定鎖體設定檔
     static final int CMD_0xD6 = CMD_0xD5 + 1 ; //	查詢鎖體狀態
     static final int CMD_0xD7 = CMD_0xD6 + 1 ; //	設定鎖體狀態
-    static final int CMD_0xE0 = CMD_0xD7 + 1 ; //	查詢 Log 數量
+    static final int CMD_0xD8 = CMD_0xD7 + 1 ; //	查詢鎖體時區
+    static final int CMD_0xD9 = CMD_0xD8 + 1 ; //	設定鎖體時區
+    static final int CMD_0xE0 = CMD_0xD9 + 1 ; //	查詢 Log 數量
     static final int CMD_0xE1 = CMD_0xE0 + 1 ; //	查詢 Log
     static final int CMD_0xE2 = CMD_0xE1 + 1 ; //	刪除 Log
     static final int CMD_0xE3 = CMD_0xE2 + 1 ; //	保留未使用
@@ -86,8 +88,6 @@ class Constants {
 //    static final int CMD_0xEE = 26 ; //	刪除 PinCode
 //    static final int CMD_0xEF = 26 ; //	刪除 PinCode
 
-    static final int CMD_0xD8 = 0 ; // ~ 0xDF	保留未使用
-
     public static final String CMD_NAME_0xC0 = "BLE_Connect";
     public static final String CMD_NAME_0xC1 = "Connect";
     public static final String CMD_NAME_0xC7 = "NewAdminPinCode";
@@ -102,6 +102,8 @@ class Constants {
     public static final String CMD_NAME_0xD5 = "SetLockConfig";
     public static final String CMD_NAME_0xD6 = "InquireLockState";
     public static final String CMD_NAME_0xD7 = "SetLockState";
+    public static final String CMD_NAME_0xD8 = "InquireLockTimeZone";
+    public static final String CMD_NAME_0xD9 = "SetLockTimeZone";
     public static final String CMD_NAME_0xE0 = "InquireLogCount";
     public static final String CMD_NAME_0xE1 = "InquireLog";
     public static final String CMD_NAME_0xE2 = "DeleteLog";

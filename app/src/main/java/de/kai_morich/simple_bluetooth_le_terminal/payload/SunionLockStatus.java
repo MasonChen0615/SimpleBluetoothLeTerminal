@@ -1,7 +1,9 @@
 package de.kai_morich.simple_bluetooth_le_terminal.payload;
 
+import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.util.Date;
+import java.util.TimeZone;
 
 import de.kai_morich.simple_bluetooth_le_terminal.CodeUtils;
 
@@ -21,6 +23,9 @@ public class SunionLockStatus {
 
     public double latitude;
     public double longitude;
+
+    public int time_offset;
+    public byte[] time_zone;
 
 
     public static final byte LOCK_STATUS_RIGHT = (byte) 0xA0;
@@ -70,6 +75,59 @@ public class SunionLockStatus {
         } else {
             this.autolock_delay = (byte)autolock_delay;
         }
+    }
+
+    public void setTimeZone(String zone){
+        byte[] tmp = zone.getBytes(StandardCharsets.US_ASCII);
+        if (tmp.length > 8){
+            this.time_zone = new byte[8];
+            for(int i = 0 ; i < 8 ; i++){
+                this.time_zone[i] = tmp[i];
+            }
+        } else {
+            this.time_zone = tmp;
+        }
+    }
+
+    public void setTimeZoneOffset(float offset){
+        if (offset >= 24) {
+            this.time_offset = 24 * 3600;
+        } else if (offset <= -24) {
+            this.time_offset = -24 * 3600;
+        } else {
+            float tmp = offset * 3600;
+            this.time_offset = (int)tmp;
+        }
+    }
+
+    public byte[] getTimeZoneOffset(){
+        byte[] tmp; // FF FF FF FF
+        tmp = CodeUtils.intToLittleEndian((long) this.time_offset);
+        return tmp;
+    }
+
+    public static String decodeTimeZonePayloadToString(byte[] payload){
+        String notice = "";
+        byte[] tmp;
+        if (payload.length == 4){
+            notice += "offset in second : " + CodeUtils.littleEndianToInt(payload) + "\n";
+            notice += "offset in hour : " + String.format("%.2f", (double)(CodeUtils.littleEndianToInt(payload) / 3600)) + "\n";
+        } else if (payload.length > 4){
+            tmp = new byte[4];
+            for (int i = 0 ; i < 4 ; i ++){
+                tmp[i] = payload[i];
+            }
+            notice += "offset in second : " + CodeUtils.littleEndianToInt(tmp) + "\n";
+            notice += "offset in hour : " + String.format("%.2f", (double)(CodeUtils.littleEndianToInt(tmp) / 3600)) + "\n";
+            tmp = new byte[payload.length - 4];
+            for (int i = 4 ; i < payload.length ; i ++){
+                tmp[i-4] = payload[i];
+            }
+            notice += "TimeZone : " + new String(tmp,StandardCharsets.US_ASCII) + "\n";
+        } else {
+            notice += "unknown payload size";
+        }
+        return notice;
     }
 
     public void setGeographicLocation(double latitude , double longitude){
