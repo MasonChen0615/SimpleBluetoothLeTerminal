@@ -17,6 +17,7 @@ public class SunionTokenStatus {
     private Boolean enable = false;
     private Boolean once_use = false;
     private Boolean owner_token = false;
+    private byte token_permission = TOKEN_PERMISSION_UNKNOWN;
     private byte[] token;
     private byte[] name;
 
@@ -34,6 +35,13 @@ public class SunionTokenStatus {
     public static final String EXCHANGE_TAG_TOKEN = "T";
     public static final String EXCHANGE_TAG_NAME = "N";
     public static final String EXCHANGE_TAG_INDEX = "I";
+
+    //    Token 權限 'A':全部, 'L':有限, 'N':無
+    public static final byte TOKEN_PERMISSION_ALL = (byte)0x41;
+    public static final byte TOKEN_PERMISSION_LIMIT = (byte)0x4C;
+    public static final byte TOKEN_PERMISSION_NONE = (byte)0x4E;
+    public static final byte TOKEN_PERMISSION_UNKNOWN = (byte)0x00;
+
 
     public SunionTokenStatus(){
         this.enable = false;
@@ -60,19 +68,63 @@ public class SunionTokenStatus {
         this.name = name;
         this.owner_token = owner_token;
     }
+    //0    1	1	是否成功 1:成功, 0:失敗
+    //1    2	1	Index 0~9
+
+    //2    3	1	是否是永久 Token 1:永久, 0:一次性
+    //3    4	1	Token 權限 'A':全部, 'L':有限, 'N':無
+    //4 ~ 11    5 ~ 12	8	Token
+    //12    13 ~	(最多 20 Byte)	Name
+    public static SunionTokenStatus decodeModifyTokenPayload(byte[] payload) throws Exception{
+        SunionTokenStatus new_token = new SunionTokenStatus();
+        final int token_head = 12;
+        int name_offset = 4;
+        if (payload.length >= token_head) {
+            new_token.enable = true;
+            new_token.once_use = (payload[2] == ((byte) 0x00)) ? true : false; //1:永久, 0:一次性
+            new_token.owner_token = false;
+            switch(payload[3]){
+                case TOKEN_PERMISSION_ALL:
+                case TOKEN_PERMISSION_LIMIT:
+                case TOKEN_PERMISSION_NONE:
+                    new_token.token_permission = payload[3];
+                    break;
+                default:
+                    new_token.token_permission = TOKEN_PERMISSION_UNKNOWN;
+                    break;
+            }
+            new_token.token = new byte[8];
+            for (int i = 0 ; i < new_token.token.length ; i++){
+                new_token.token[i] = payload[name_offset+i];
+            }
+            if ((payload.length - token_head) > 0){
+                new_token.name = new byte[payload.length - token_head];
+                for (int i = token_head; i < payload.length; i++) {
+                    new_token.name[i - token_head] = payload[i];
+                }
+            }
+        } else {
+            throw new Exception(" unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+        }
+        return new_token;
+    }
     public static SunionTokenStatus decodeTokenPayload(byte[] payload) throws Exception{
         SunionTokenStatus new_token = new SunionTokenStatus();
-        final int token_head = 11;
-        int name_offset = 2;
+        final int token_head = 12;
+        int name_offset = 4;
         if (payload.length >= token_head) {
             new_token.enable = (payload[0] == ((byte) 0x01)) ? true : false;
             new_token.once_use = (payload[1] == ((byte) 0x00)) ? true : false; //1:永久, 0:一次性
-            //TODO : need to delete when deivce use new token_head size(11)
-            if (token_head == 10){
-                name_offset = 2;
-            } else if (token_head == 11){
-                new_token.owner_token = (payload[2] == ((byte) 0x01)) ? true : false;
-                name_offset = 3;
+            new_token.owner_token = (payload[2] == ((byte) 0x01)) ? true : false;
+            switch(payload[3]){
+                case TOKEN_PERMISSION_ALL:
+                case TOKEN_PERMISSION_LIMIT:
+                case TOKEN_PERMISSION_NONE:
+                    new_token.token_permission = payload[3];
+                    break;
+                default:
+                    new_token.token_permission = TOKEN_PERMISSION_UNKNOWN;
+                    break;
             }
             new_token.token = new byte[8];
             for (int i = 0 ; i < new_token.token.length ; i++){
@@ -113,13 +165,62 @@ public class SunionTokenStatus {
         return this.once_use;
     }
 
+    public void setTokenPermission(byte permission){
+        this.token_permission = permission;
+    }
+
+    public byte getTokenPermission(){
+        return this.token_permission;
+    }
+
     @Override
     public String toString(){
         String message = "enable:" + ( enable ? "true" : "false" ) + "\n";
         message += "once_use:" + ( once_use ? "true" : "false" ) + "\n";
         message += "owner_token:" + ( owner_token ? "true" : "false" ) + "\n";
-        //TODO : wait for deivce update new version.
-//        message += "owner token:" + ( owner_token ? "true" : "false" ) + "\n";
+        message += "token_permission:";
+        switch(token_permission){
+            case TOKEN_PERMISSION_ALL:
+                message += "ALL";
+                break;
+            case TOKEN_PERMISSION_LIMIT:
+                message += "LIMIT";
+                break;
+            case TOKEN_PERMISSION_NONE:
+                message += "NONE";
+                break;
+            default:
+                message += "UNKNOWN";
+                break;
+        }
+        message += "\n";
+        message += "token:" + CodeUtils.bytesToHex(token);
+        if (name != null) {
+            if (name.length > 0) {
+                message += "\nname:" + new String(name, StandardCharsets.US_ASCII);
+            }
+        }
+        return message;
+    }
+    public String modifyTokenToString(){
+        String message = "";
+        message += "once_use:" + ( once_use ? "true" : "false" ) + "\n";
+        message += "token_permission:";
+        switch(token_permission){
+            case TOKEN_PERMISSION_ALL:
+                message += "ALL";
+                break;
+            case TOKEN_PERMISSION_LIMIT:
+                message += "LIMIT";
+                break;
+            case TOKEN_PERMISSION_NONE:
+                message += "NONE";
+                break;
+            default:
+                message += "UNKNOWN";
+                break;
+        }
+        message += "\n";
         message += "token:" + CodeUtils.bytesToHex(token);
         if (name != null) {
             if (name.length > 0) {

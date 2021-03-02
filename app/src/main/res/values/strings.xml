@@ -61,10 +61,12 @@
     <string name="Command_CMD_0xE5_Arg0_Message">0 ~ 9</string>
     <string name="Command_CMD_0xE6_Arg0">Name</string>
     <string name="Command_CMD_0xE6_Arg0_Message">1 ~ 20 Byte</string>
+    <string name="Command_CMD_0xE6_Arg1">Permission</string>
     <string name="Command_CMD_0xE7_Arg0">Index</string>
     <string name="Command_CMD_0xE7_Arg0_Message">0 ~ 9</string>
     <string name="Command_CMD_0xE7_Arg1">Name</string>
     <string name="Command_CMD_0xE7_Arg1_Message">1 ~ 20 Byte</string>
+    <string name="Command_CMD_0xE7_Arg2">Permission</string>
     <string name="Command_CMD_0xE8_Arg0">Index</string>
     <string name="Command_CMD_0xE8_Arg0_Message">0 ~ 9</string>
     <string name="Command_CMD_0xEB_Arg0">Index</string>

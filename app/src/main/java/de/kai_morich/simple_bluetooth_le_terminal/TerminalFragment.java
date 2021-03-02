@@ -777,11 +777,37 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xE6_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_TEXT);
                 edit_command_arg[0].setText(command_args.getRandomTokenName(SunionControlStatus.NEW_PREFIX));
+                //Permission
+                command_arg[1].setVisibility(View.VISIBLE);
+                command_arg[1].setText(R.string.Command_CMD_0xE6_Arg1);
+                names = getResources().getStringArray(R.array.command_arg_token_permission);
+                leaders_String = new ArrayList<String>();
+                for(int i = 0; i < names.length; i++){
+                    leaders_String.add(names[i]);
+                }
+                adapter_String = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_String);
+                adapter_String.setDropDownViewResource( R.layout.command_args_spinner_item);
+                dy_mSpn[1].setAdapter(adapter_String);
+                dy_mSpn[1].setVisibility(View.VISIBLE);
                 command_customer_func = new View.OnClickListener() {
                     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
                     @Override
                     public void onClick(View view) {
                         command_args.token.setTokenName(edit_command_arg[0].getText().toString());
+                        switch(dy_mSpn[1].getSelectedItemPosition()){
+                            case 0:
+                                // TODO: will pass
+                                command_args.token.setTokenPermission(SunionTokenStatus.TOKEN_PERMISSION_ALL);
+                                break;
+                            case 1:
+                                // TODO: will pass
+                                command_args.token.setTokenPermission(SunionTokenStatus.TOKEN_PERMISSION_LIMIT);
+                                break;
+                            case 2:
+                                // TODO: set none will reject
+                                command_args.token.setTokenPermission(SunionTokenStatus.TOKEN_PERMISSION_NONE);
+                                break;
+                        }
                     }
                 };
                 break;
@@ -798,6 +824,18 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[1].setHint(R.string.Command_CMD_0xE7_Arg1_Message);
                 edit_command_arg[1].setInputType(InputType.TYPE_CLASS_TEXT);
                 edit_command_arg[1].setText(command_args.getRandomTokenName(SunionControlStatus.MODIFY_PREFIX));
+                //Permission
+                command_arg[2].setVisibility(View.VISIBLE);
+                command_arg[2].setText(R.string.Command_CMD_0xE7_Arg2);
+                names = getResources().getStringArray(R.array.command_arg_token_permission);
+                leaders_String = new ArrayList<String>();
+                for(int i = 0; i < names.length; i++){
+                    leaders_String.add(names[i]);
+                }
+                adapter_String = new ArrayAdapter<String>(this.getContext().getApplicationContext(),  R.layout.command_args_spinner_item, leaders_String);
+                adapter_String.setDropDownViewResource( R.layout.command_args_spinner_item);
+                dy_mSpn[2].setAdapter(adapter_String);
+                dy_mSpn[2].setVisibility(View.VISIBLE);
                 command_customer_func = new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
@@ -807,6 +845,20 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                             command_args.setTokenIndex(0);
                         }
                         command_args.token.setTokenName(edit_command_arg[1].getText().toString());
+                        switch(dy_mSpn[2].getSelectedItemPosition()){
+                            case 0:
+                                // TODO: will pass
+                                command_args.token.setTokenPermission(SunionTokenStatus.TOKEN_PERMISSION_ALL);
+                                break;
+                            case 1:
+                                // TODO: will pass
+                                command_args.token.setTokenPermission(SunionTokenStatus.TOKEN_PERMISSION_LIMIT);
+                                break;
+                            case 2:
+                                // TODO: set none will reject
+                                command_args.token.setTokenPermission(SunionTokenStatus.TOKEN_PERMISSION_NONE);
+                                break;
+                        }
                     }
                 };
                 break;
@@ -1246,22 +1298,28 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     );
                     break;
                 case Constants.CMD_0xE6:
-                    test_name = new String (command_args.token.getTokenName(), StandardCharsets.US_ASCII) ;
-                    popNotice("new once token name: " + test_name);
+                    tmp = command_args.token.getTokenName();
+                    data = new byte[tmp.length + 1];
+                    data[0] = command_args.token.getTokenPermission();
+                    for(int i = 1 ; i < data.length ; i++){
+                        data[i] = tmp[i-1];
+                    }
+                    popNotice("new once token name: " + new String(tmp,StandardCharsets.US_ASCII));
                     commandWithStep(
                             CodeUtils.NewOnceToken,
-                            test_name,
-                            (byte)test_name.getBytes(StandardCharsets.US_ASCII).length,
-                            test_name.getBytes(StandardCharsets.US_ASCII)
+                            new String(tmp,StandardCharsets.US_ASCII),
+                            (byte)data.length,
+                            data
                     );
                     break;
                 case Constants.CMD_0xE7:
                     tmp = command_args.token.getTokenName();
-                    data = new byte[tmp.length + 1];
+                    data = new byte[tmp.length + 2];
                     data[0] = (byte) command_args.getTokenIndex(false);
+                    data[1] = command_args.token.getTokenPermission();
                     popNotice("modify token index is " + ((int)(data[0] & (byte)0xff)) + " and name: " + new String(tmp,StandardCharsets.US_ASCII));
-                    for ( int i = 1 ; i < data.length ; i++ ) {
-                        data[i] = tmp[i-1];
+                    for ( int i = 2 ; i < data.length ; i++ ) {
+                        data[i] = tmp[i-2];
                     }
                     commandWithStep(
                             CodeUtils.ModifyToken,

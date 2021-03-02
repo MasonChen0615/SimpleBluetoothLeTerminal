@@ -78,6 +78,11 @@
         <item>EE</item>
         <item>EF</item>
     </string-array>
+    <string-array name="command_arg_token_permission"> <!--<item>common use</item>-->
+        <item>ALL</item>
+        <item>LIMIT</item>
+        <item>NONE</item>
+    </string-array>
     <string-array name="command_arg_common_boolean"> <!--<item>common use</item>-->
         <item>On</item>
         <item>Off</item>

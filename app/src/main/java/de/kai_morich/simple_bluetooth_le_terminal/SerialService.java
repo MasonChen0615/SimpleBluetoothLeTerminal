@@ -957,7 +957,7 @@ public class SerialService extends Service implements SerialListener {
                     printMessage( "index:" + index );
                     try {
                         SunionTokenStatus my_token = SunionTokenStatus.decodeTokenPayload(payload);
-                        if (index >= 0 && index < 10){
+                        if (index >= 0 && index < 12){
                             setLockStorageToken(
                                     index,
                                     my_token
@@ -1009,37 +1009,28 @@ public class SerialService extends Service implements SerialListener {
                     int index = Integer.parseInt(getCurrentCommandStep());
                     printMessage( "index:" + index );
                     byte[] payload = commandPackage.getData();
-                    if (payload.length >= 10) {
-//                        1	1	是否可用 1:可用, 0:不可用
-//                        2	1	是否是永久 Token 1:永久, 0:一次性
-//                        3 ~10	8	Token
-//                        11 ~	(最多 20 Byte)	Name
-                        Boolean enable = (payload[0] == ((byte) 0x01)) ? true : false;
-                        Boolean once_use = (payload[1] == ((byte) 0x00)) ? true : false;
-                        byte[] token = new byte[]{payload[2],payload[3],payload[4],payload[5],payload[6],payload[7],payload[8],payload[9]};
-                        byte[] name = new byte[payload.length - 10];
-                        for(int i = 10 ; i < payload.length ; i++ ){
-                            name[i-10] = payload[i];
+                    try {
+                        if ( payload[0] == (byte) 0x01 ) {
+                            printMessage(Constants.CMD_NAME_0xE7 + " allow");
+                            SunionTokenStatus my_token = SunionTokenStatus.decodeModifyTokenPayload(payload);
+                            if (index >= 0 && index < 12){
+                                setLockStorageToken(
+                                        index,
+                                        my_token
+                                );
+                            }
+                            printMessage(Constants.CMD_NAME_0xE7 + " status report start");
+                            printMessage(my_token.modifyTokenToString());
+                            printMessage(Constants.CMD_NAME_0xE7 + " status report end");
+                        } else if ( payload[0] == (byte) 0x00 ) {
+                            printMessage(Constants.CMD_NAME_0xE7 + " reject");
+                        } else {
+                            printMessage(Constants.CMD_NAME_0xE7 + " unknown return : " + CodeUtils.bytesToHex(payload));
                         }
-                        if (index >= 0 && index < 10){
-                            setLockStorageToken(
-                                    index,
-                                    new SunionTokenStatus(
-                                            enable,
-                                            once_use,
-                                            token,
-                                            name
-                                    )
-                            );
-                        }
-                        printMessage(Constants.CMD_NAME_0xE7 + " status report start");
-                        printMessage( "enable:" + ( enable ? "true" : "false" ) );
-                        printMessage( "once_use:" + ( once_use ? "true" : "false" ));
-                        printMessage( "token:" + CodeUtils.bytesToHex(token));
-                        printMessage( "name:" + new String(name,StandardCharsets.US_ASCII));
-                        printMessage(Constants.CMD_NAME_0xE7 + " status report end");
-                    } else {
-                        printMessage(Constants.CMD_NAME_0xE7 + " unknown return (size not match doc) : " + CodeUtils.bytesToHex(payload));
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        printMessage(Constants.CMD_NAME_0xE7 + e.getMessage());
                     }
                     resetCommandState();
                 }
