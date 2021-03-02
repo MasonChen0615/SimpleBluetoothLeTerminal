@@ -13,6 +13,7 @@ public class SunionControlStatus {
     private int storage_token_index = 0;
     private int storage_log_index = 0;
     private int storage_log_index_current_number = 0;
+    private long mytime = NOT_SET_TIME;
 
     public SunionPincodeStatus old_pincode;
     public SunionPincodeStatus pincode;
@@ -31,6 +32,8 @@ public class SunionControlStatus {
     public int qrcode_action = 0;
     public int qrcode_select = 0;
     public Boolean token_store = false;
+
+    public static final long NOT_SET_TIME = -1;
 
     public byte[] current_token;
     public Boolean current_token_once_use = false;
@@ -185,8 +188,17 @@ public class SunionControlStatus {
     }
 
     public byte[] getTime() {
-        Long tsLong = System.currentTimeMillis()/1000;
-        byte[] data = CodeUtils.intToLittleEndian(tsLong);
-        return data;
+        if (this.mytime == NOT_SET_TIME){
+            Long tsLong = System.currentTimeMillis()/1000;
+            byte[] data = CodeUtils.intToLittleEndian(tsLong);
+            return data;
+        } else {
+            byte[] data = CodeUtils.intToLittleEndian(this.mytime);
+            return data;
+        }
+    }
+
+    public void setTime(long time) {
+        this.mytime = time;
     }
 }
