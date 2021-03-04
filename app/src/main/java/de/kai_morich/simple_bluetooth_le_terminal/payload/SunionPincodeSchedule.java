@@ -31,18 +31,23 @@ public class SunionPincodeSchedule {
     public static final byte[] Schedule_Type_GROUP = new byte[]{     ALL_DAY,    ALL_DAY_DENY,    ONCE_USE,    WEEK_ROUTINE,    SEEK_TIME };
 
     // only W can use, if not in W mode , WEEK DAY default value is WEEK_NOT_USE
-/**
- *  n | NaN | SUN | SAT | FRI | THUR | WED | TUE | MON |
- *  b |  7  |  6  |  5  |  4  |  3   |  2  |  1  |  0  |
- *  week MON WED FRI -> (Use Bitwise operators)   WEEK_MON | WEEK_WED | WEEK_FRI
- */
-    public static final byte WEEK_MON = (byte) 0x01;
-    public static final byte WEEK_TUE = (byte) 0x02;
-    public static final byte WEEK_WED = (byte) 0x04;
-    public static final byte WEEK_THUR = (byte) 0x08;
-    public static final byte WEEK_FRI = (byte) 0x10;
-    public static final byte WEEK_SAT = (byte) 0x20;
-    public static final byte WEEK_SUN = (byte) 0x40;
+    /**
+     *  n | NaN | SUN | SAT | FRI | THUR | WED | TUE | MON |
+     *  b |  7  |  6  |  5  |  4  |  3   |  2  |  1  |  0  |
+     *  week MON WED FRI -> (Use Bitwise operators)   WEEK_MON | WEEK_WED | WEEK_FRI
+     */
+    /**
+     *  n | NaN | SAT | FRI | THUR | WED | TUE | MON | SUN |
+     *  b |  7  |  6  |  5  |  4  |  3   |  2  |  1  |  0  |
+     *  week MON WED FRI -> (Use Bitwise operators)   WEEK_MON | WEEK_WED | WEEK_FRI
+     */
+    public static final byte WEEK_SUN = (byte) 0x01;
+    public static final byte WEEK_MON = (byte) 0x02;
+    public static final byte WEEK_TUE = (byte) 0x04;
+    public static final byte WEEK_WED = (byte) 0x08;
+    public static final byte WEEK_THUR = (byte) 0x10;
+    public static final byte WEEK_FRI = (byte) 0x20;
+    public static final byte WEEK_SAT = (byte) 0x40;
     public static final byte WEEK_NOT_USE = (byte) 0x80;
     public static final byte[] WEEK_GROUP = new byte[]{WEEK_MON, WEEK_TUE, WEEK_WED, WEEK_THUR, WEEK_FRI, WEEK_SAT, WEEK_SUN};
     public static final String[] WEEK_NAME_GROUP = new String[]{"MON", "TUE", "WED", "THUR", "FRI", "SAT", "SUN"};

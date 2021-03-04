@@ -563,11 +563,16 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 edit_command_arg[0].setHint(R.string.Command_CMD_0xD3_Arg0_Message);
                 edit_command_arg[0].setInputType(InputType.TYPE_CLASS_NUMBER);
                 edit_command_arg[0].setText("1614639600");
-                try {
-                    command_args.setTime((long)Integer.parseInt(edit_command_arg[0].getText().toString()));
-                } catch (NumberFormatException e){
-                    command_args.setTime(SunionControlStatus.NOT_SET_TIME);
-                }
+                command_customer_func = new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        try {
+                            command_args.setTime((long)Integer.parseInt(edit_command_arg[0].getText().toString()));
+                        } catch (NumberFormatException e){
+                            command_args.setTime(SunionControlStatus.NOT_SET_TIME);
+                        }
+                    }
+                };
                 break;
             case Constants.CMD_0xD5:
                 names = getResources().getStringArray(R.array.command_arg_D5_arg0);
