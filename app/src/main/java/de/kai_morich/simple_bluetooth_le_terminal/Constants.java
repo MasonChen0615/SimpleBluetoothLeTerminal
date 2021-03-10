@@ -59,6 +59,9 @@ class Constants {
     static final int CMD_0xED = CMD_0xEC + 1 ; //	修改 PinCode
     static final int CMD_0xEE = CMD_0xED + 1 ; //	刪除 PinCode
     static final int CMD_0xEF = CMD_0xEE + 1 ; //	刪除 PinCode
+
+    static final int CMD_Run_Read50000 = CMD_0xEF + 1 ; //	命令流水號上限測試
+    static final int CMD_Run_Read_Duplicate_SN = CMD_Run_Read50000 + 1 ; //	命令流水號重複測試
 //    0xC7	新增管理者PinCode
 //    0xC8	修改管理者PinCode
 //    static final int CMD_0xCC = 2 ; //	左右判定

@@ -391,6 +391,10 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    public int getCommandIV(){
+        return this.command_iv;
+    }
+
     public int resetCommandIV(){
         synchronized (this) {
             this.command_iv = 1;

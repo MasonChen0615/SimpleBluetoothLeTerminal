@@ -116,6 +116,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private PopupWindow popupWindow;
     private Button command_button, btnConfirm;
     private Menu menu;
+    private View sendBtn;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
@@ -137,6 +138,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private Boolean wait_connection_counter = false;
     private LocationManager mLocationManager;
     private final int PICK_IMAGE = 1;
+
+    private Boolean in_test = false;
+    private int test_sn = 0;
+    private Boolean test_recive = false;
 
     @Override
     public void onLocationChanged(final Location location) {
@@ -1414,6 +1419,16 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 case Constants.CMD_0xEF:
                     commandNormal(CodeUtils.HaveMangerPinCode,(byte) 0x00,new byte[]{});
                     break;
+                case Constants.CMD_Run_Read50000:
+                    in_test = false;
+                    commandNormal(CodeUtils.InquireLockTime,(byte) 0x00,new byte[]{});
+                    break;
+                case Constants.CMD_Run_Read_Duplicate_SN:
+                    if (test_sn == 0){
+                        test_sn = service.getCommandIV();
+                    }
+                    commandNormalWithIV(CodeUtils.InquireLockTime,(byte) 0x00,new byte[]{}, test_sn);
+                    break;
                 default:
                     break;
             }
@@ -1422,6 +1437,85 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     };
 
+
+    private View.OnClickListener send_click = new View.OnClickListener(){
+        @Override
+        public void onClick(View view) {
+            switch(current_command_select_position){
+                case Constants.CMD_Run_Read50000:
+                    if(!in_test){
+                        Thread thread = new Thread() {
+                            @Override
+                            public void run() {
+                                try {
+                                    for(int i = 0 ; i <200 ; i++){
+                                        if (!getTestStatus()){
+                                            receiveTextAppend("loop test stop.");
+                                            break;
+                                        }
+                                        if(getConnected() != Connected.True) {
+                                            receiveTextAppend("last vi = " + service.getCommandIV());
+                                            break;
+                                        }
+                                        sleep(100);
+                                        setTestRecive(false);
+                                        String command = commandNormalGetWithIV(CodeUtils.InquireLockTime,(byte) 0x00,new byte[]{}, i + 49900);
+                                        send(command);
+                                        if(getTestRecive()){
+                                            setTestRecive(false);
+                                        } else {
+                                            int wait = 500;
+                                            for(int j = 0 ; j < wait ; j++){
+                                                sleep(20);
+                                                if (getTestRecive()){
+                                                    setTestRecive(false);
+                                                    break;
+                                                }
+                                                if(getConnected() != Connected.True) {
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        };
+                        thread.start();
+                        in_test = true;
+                    }
+                    break;
+                case Constants.CMD_Run_Read_Duplicate_SN:
+                default:
+                    send(sendText.getText().toString());
+                    break;
+            }
+        }
+    };
+
+    private boolean getTestStatus(){
+        synchronized (this) {
+            return this.in_test;
+        }
+    }
+
+    private void setTestRecive(boolean test_recive){
+        synchronized (this) {
+            this.test_recive = test_recive;
+        }
+    }
+    private boolean getTestRecive(){
+        synchronized (this) {
+            return this.test_recive;
+        }
+    }
+
+    private TerminalFragment.Connected getConnected(){
+        synchronized (this) {
+            return this.connected;
+        }
+    }
     /*
      * UI
      */
@@ -1452,8 +1546,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             leaders.add(leader);
         }
 
-        View sendBtn = view.findViewById(R.id.send_btn);
-        sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
+        sendBtn = view.findViewById(R.id.send_btn);
+//        sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
+        sendBtn.setOnClickListener(send_click);
         sendBtn.setEnabled(false);
         sendBtn.setBackground(getResources().getDrawable(R.drawable.ic_send_cancel_white_24dp));
 
@@ -1544,6 +1639,48 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                             size,
                             data,
                             service.incrCommandIV()
+                    )
+            );
+            current_command = cmd;
+            sendText.setText(CodeUtils.bytesToHex(command));
+        } else {
+            errorToast("Missing Connection AES Key");
+            sendText.setText("");
+        }
+    }
+
+    private String commandNormalGetWithIV(byte cmd , byte size , byte[] data, int iv){
+        SecretKey key = service.getConnectionAESKey();
+        if ( key != null ){
+            byte[] command = CodeUtils.encodeAES(
+                    key,
+                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                    CodeUtils.getCommandPackage(
+                            cmd,
+                            size,
+                            data,
+                            iv
+                    )
+            );
+            current_command = cmd;
+            return CodeUtils.bytesToHex(command);
+        } else {
+            errorToast("Missing Connection AES Key");
+            return "";
+        }
+    }
+
+    private void commandNormalWithIV(byte cmd , byte size , byte[] data, int iv){
+        SecretKey key = service.getConnectionAESKey();
+        if ( key != null ){
+            byte[] command = CodeUtils.encodeAES(
+                    key,
+                    CodeUtils.AES_Cipher_DL02_H2MB_KPD_Small,
+                    CodeUtils.getCommandPackage(
+                            cmd,
+                            size,
+                            data,
+                            iv
                     )
             );
             current_command = cmd;
@@ -2007,7 +2144,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         service.disconnect();
     }
 
-    private void send(String str) {
+    synchronized private void send(String str) {
         if(connected != Connected.True) {
             Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
             return;
@@ -2045,6 +2182,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
+    private void receiveTextAppend(String s){
+        synchronized(this){
+            SpannableStringBuilder spn = new SpannableStringBuilder(s+'\n');
+            spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            receiveText.append(spn);
+        }
+    }
+
     private void receive(byte[] data) {
         if (receiveText.length() > 5000) {
             CharSequence tmp = receiveText.getText();
@@ -2077,6 +2222,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             }else{
                 receiveText.append(TextUtil.toHexString(data) + '\n');
             }
+            setTestRecive(true);
         } else {
             String msg = new String(data);
             if(newline.equals(TextUtil.newline_crlf) && msg.length() > 0) {

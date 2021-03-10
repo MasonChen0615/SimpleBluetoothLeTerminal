@@ -43,6 +43,8 @@
         <item>0xED	修改 PinCode</item>
         <item>0xEE	刪除 PinCode</item>
         <item>0xEF	是否有管理者 PinCode</item>
+        <item>命令流水號上限測試</item>
+        <item>命令流水號重複測試</item>
     </string-array>
     <string-array name="command_values">
         <item>C0</item>
@@ -77,6 +79,8 @@
         <item>ED</item>
         <item>EE</item>
         <item>EF</item>
+        <item>CMD_Run_Read50000</item>
+        <item>CMD_Run_Read_Duplicate_SN</item>
     </string-array>
     <string-array name="command_arg_token_permission"> <!--<item>common use</item>-->
         <item>ALL</item>
